@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },   // login name
     passwordHash: { type: String, required: true },             // hashed password (never plain)
     // permission level - frontend routes to a dashboard based on this
-    role: { type: String, enum: ['Admin', 'Manager', 'Dispatcher', 'Technician'], default: 'Technician' },
+    role: { type: String, enum: ['Admin', 'Manager', 'Dispatcher', 'Technician']},
     // account state - lets an Admin suspend a user without deleting them
     status: { type: String, enum: ['active', 'suspended'], default: 'active' },
     lastLogin: { type: Date, default: null },                   // null = never logged in yet
