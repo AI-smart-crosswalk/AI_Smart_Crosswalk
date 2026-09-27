@@ -18,7 +18,7 @@ HTTP endpoints for users (mounted at /api/users):
 */
 import express from "express";
 import userService from "../services/userService.js";
-import authMiddleware from "../middleware/authMiddleware.js";
+import authMiddleware from "../middleware/authenticationMiddleware.js";
 
 const router = express.Router();
 
