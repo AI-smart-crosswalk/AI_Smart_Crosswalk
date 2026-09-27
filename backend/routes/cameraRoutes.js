@@ -18,11 +18,13 @@ import {
     fetchCamerasByCrosswalk,
     updateCamera,
 } from '../services/cameraService.js';
+import authenticate from '../middleware/authenticationMiddleware.js';
+import authorize from '../middleware/authorizationMiddleware.js';
 
 const router = express.Router();
 
 // POST /api/cameras - create a new camera.
-router.post('/', async (req, res) => {
+router.post('/', authenticate, authorize('Admin', 'Manager'), async (req, res) => {
     try {
         const savedCamera = await createCamera(req.body);
         res.status(201).json(savedCamera);
@@ -32,7 +34,7 @@ router.post('/', async (req, res) => {
 });
 
 // GET /api/cameras - return cameras from the DB, optionally filtered by ?crosswalkId.
-router.get('/', async (req, res) => {
+router.get('/', authenticate, authorize('Admin', 'Manager', 'Dispatcher', 'Technician'), async (req, res) => {
     try {
         const { crosswalkId } = req.query;
         const cameras = crosswalkId
@@ -45,7 +47,7 @@ router.get('/', async (req, res) => {
 });
 
 // PUT /api/cameras/:id - update a camera by its code (e.g. { "status": "Inactive" }).
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, authorize('Admin', 'Manager', 'Technician'), async (req, res) => {
     try {
         const updated = await updateCamera(req.params.id, req.body);
         if (!updated) {

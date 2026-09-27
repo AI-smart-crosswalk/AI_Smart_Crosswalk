@@ -18,19 +18,21 @@ HTTP endpoints for users (mounted at /api/users):
 */
 import express from "express";
 import userService from "../services/userService.js";
-import authMiddleware from "../middleware/authenticationMiddleware.js";
+import authenticate from "../middleware/authenticationMiddleware.js";
+import authorize from "../middleware/authorizationMiddleware.js";
 
 const router = express.Router();
 
 // The only public auth endpoint.
 router.post("/login", userService.login);
 
-// Admin-only user management. authMiddleware verifies the JWT and attaches
-// req.user; the service methods then check req.user.role === 'Admin'.
-router.post("/register", authMiddleware, userService.createUser);   // path kept for the frontend; NOT public
-router.get("/", authMiddleware, userService.getAllUsers);
-router.put("/:id", authMiddleware, userService.updateUser);
-router.patch("/:id/status", authMiddleware, userService.setUserStatus);
-router.delete("/:id", authMiddleware, userService.deleteUser);
+// Admin-only user management. authenticate verifies the JWT and attaches
+// req.user; authorize then checks req.user.role. (userService also still checks
+// role === 'Admin' internally - kept as a second guard, safe to leave in place.)
+router.post("/register", authenticate, authorize("Admin"), userService.createUser);   // path kept for the frontend; NOT public
+router.get("/", authenticate, authorize("Admin"), userService.getAllUsers);
+router.put("/:id", authenticate, authorize("Admin"), userService.updateUser);
+router.patch("/:id/status", authenticate, authorize("Admin"), userService.setUserStatus);
+router.delete("/:id", authenticate, authorize("Admin"), userService.deleteUser);
 
 export default router;

@@ -18,11 +18,13 @@ import {
     fetchLedsByCrosswalk,
     updateLed,
 } from '../services/ledService.js';
+import authenticate from '../middleware/authenticationMiddleware.js';
+import authorize from '../middleware/authorizationMiddleware.js';
 
 const router = express.Router();
 
 // POST /api/leds - create a new LED record.
-router.post('/', async (req, res) => {
+router.post('/', authenticate, authorize('Admin', 'Manager'), async (req, res) => {
     try {
         const savedLed = await createLed(req.body);
         res.status(201).json(savedLed);
@@ -32,7 +34,7 @@ router.post('/', async (req, res) => {
 });
 
 // GET /api/leds - return LEDs from the DB, optionally filtered by ?crosswalkId.
-router.get('/', async (req, res) => {
+router.get('/', authenticate, authorize('Admin', 'Manager', 'Dispatcher', 'Technician'), async (req, res) => {
     try {
         const { crosswalkId } = req.query;
         const leds = crosswalkId
@@ -45,7 +47,7 @@ router.get('/', async (req, res) => {
 });
 
 // PUT /api/leds/:id - update an LED by its code (e.g. { "status": "On" }).
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, authorize('Admin', 'Manager', 'Technician'), async (req, res) => {
     try {
         const updated = await updateLed(req.params.id, req.body);
         if (!updated) {

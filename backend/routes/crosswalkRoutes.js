@@ -13,11 +13,13 @@
  */
 import express from 'express';
 import { createCrosswalk, fetchAllCrosswalks, updateCrosswalk } from '../services/crosswalkService.js';
+import authenticate from '../middleware/authenticationMiddleware.js';
+import authorize from '../middleware/authorizationMiddleware.js';
 
 const router = express.Router();
 
 // POST /api/crosswalks - create a new crosswalk.
-router.post('/', async (req, res) => {
+router.post('/', authenticate, authorize('Admin', 'Manager'), async (req, res) => {
     try {
         const savedCrosswalk = await createCrosswalk(req.body);
         res.status(201).json(savedCrosswalk);
@@ -27,7 +29,7 @@ router.post('/', async (req, res) => {
 });
 
 // GET /api/crosswalks - return all crosswalks from the real database.
-router.get('/', async (req, res) => {
+router.get('/', authenticate, authorize('Admin', 'Manager', 'Dispatcher', 'Technician'), async (req, res) => {
     try {
         const crosswalks = await fetchAllCrosswalks();
         res.json(crosswalks);
@@ -37,7 +39,7 @@ router.get('/', async (req, res) => {
 });
 
 // PUT /api/crosswalks/:id - update a crosswalk (e.g. { "isActive": false }).
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticate, authorize('Admin', 'Manager'), async (req, res) => {
     try {
         const updated = await updateCrosswalk(req.params.id, req.body);
         if (!updated) {
