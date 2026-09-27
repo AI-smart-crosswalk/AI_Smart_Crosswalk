@@ -14,17 +14,21 @@ from tracker import SimpleTracker
 from video_processor import VideoProcessor
 
 _saved_ref = None
+_saved_meters = None
 
 
 def setUpModule():
-    """Child-calibration OFF for these tests, regardless of what's committed in config.py."""
-    global _saved_ref
+    """Child-calibration and metres OFF for these tests, regardless of what's committed in config.py."""
+    global _saved_ref, _saved_meters
     _saved_ref = config.ADULT_HEIGHT_REF
+    _saved_meters = config.METERS_PER_H
     config.ADULT_HEIGHT_REF = None
+    config.METERS_PER_H = None
 
 
 def tearDownModule():
     config.ADULT_HEIGHT_REF = _saved_ref
+    config.METERS_PER_H = _saved_meters
 
 W, H, FPS = 640, 480, 10
 ZONE = EdgeZone([(0.0, 0.8), (1.0, 0.8), (1.0, 1.0), (0.0, 1.0)])      # zone line at y = 384

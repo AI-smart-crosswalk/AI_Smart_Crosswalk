@@ -97,7 +97,7 @@ CHILD_HEIGHT_RATIO = 0.8             # h < 0.8 x adult reference height => child
 ADULT_HEIGHT_REF = [(0.7345, 0.1671), (0.8926, 0.3643)]
 GROUP_MIN = 3                        # group rule: at least this many people approaching together
 SUDDEN_MAX_AGE_SECONDS = 0.6         # sudden-appearance: track younger than this AND already near AND approaching
-METERS_PER_H = None                  # per-camera: metres per body-height unit. None => metre fields sent as null
+METERS_PER_H = 1.7                   # metres per body-height unit (~ a typical adult, rough). None => metre fields sent as null
 
 # --- Wheeled approacher rules (bicycle / motorcycle heading toward the crossing) ---
 WHEELED_MOVING_MIN = 0.5            # h/s: below this a wheeled object is basically stopped (ignore)
