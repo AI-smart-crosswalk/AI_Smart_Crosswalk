@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import io from 'socket.io-client';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -18,21 +19,114 @@ L.Marker.prototype.options.icon = DefaultIcon;
 function TechnicianDashboard() {
   const navigate = useNavigate();
 
-  const [faultyCrosswalks, setFaultyCrosswalks] = useState([]);
+  const [crosswalks, setCrosswalks] = useState([]);
+  const [cameras, setCameras] = useState([]);
+  const [leds, setLeds] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTechnicianData = async () => {
+      setIsLoading(true);
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL;
+        const token = localStorage.getItem('token');
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        const [cwRes, camRes, ledRes] = await Promise.all([
+          fetch(`${apiUrl}/crosswalks`, { headers }),
+          fetch(`${apiUrl}/cameras`, { headers }),
+          fetch(`${apiUrl}/leds`, { headers })
+        ]);
+
+        if (cwRes.ok && camRes.ok && ledRes.ok) {
+          setCrosswalks(await cwRes.json());
+          setCameras(await camRes.json());
+          setLeds(await ledRes.json());
+        }
+      } catch (err) {
+        console.error("Error fetching technician data:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTechnicianData();
+
+    // Sockets for Real-Time hardware failure sync
+    const socketUrl = import.meta.env.VITE_API_URL.replace('/api', ''); 
+    const socket = io(socketUrl);
+
+    socket.on('infra_added', (data) => {
+      if (data.type === 'crosswalk') setCrosswalks(prev => [...prev, data.payload]);
+      if (data.type === 'camera') setCameras(prev => [...prev, data.payload]);
+      if (data.type === 'led') setLeds(prev => [...prev, data.payload]);
+    });
+
+    socket.on('infra_updated', (data) => {
+      if (data.type === 'crosswalk') setCrosswalks(prev => prev.map(j => j._id === data.payload._id ? data.payload : j));
+      if (data.type === 'camera') setCameras(prev => prev.map(c => c._id === data.payload._id ? data.payload : c));
+      if (data.type === 'led') setLeds(prev => prev.map(l => l._id === data.payload._id ? data.payload : l));
+    });
+
+    return () => socket.disconnect();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/');
   };
 
-  const handleFixHardware = (id) => {
-    setFaultyCrosswalks(faultyCrosswalks.filter(cw => cw._id !== id));
+  // פעולת תיקון: מעדכנת את הסטטוס של הרכיב (מצלמה/לד או צומת) חזרה ל-active בשרת
+  const handleFixHardware = async (itemType, itemId) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const token = localStorage.getItem('token');
+      const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+
+      let endpoint = '';
+      if (itemType === 'camera') endpoint = `${apiUrl}/cameras/${itemId}`;
+      if (itemType === 'led') endpoint = `${apiUrl}/leds/${itemId}`;
+      if (itemType === 'crosswalk') endpoint = `${apiUrl}/crosswalks/${itemId}`;
+
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: headers,
+        body: JSON.stringify({ status: 'active' })
+      });
+
+      if (!response.ok) throw new Error('שגיאה בעדכון הסטטוס מול השרת');
+
+      // עדכון מקומי בסטייט
+      if (itemType === 'camera') {
+        setCameras(cameras.map(c => c._id === itemId ? { ...c, status: 'active' } : c));
+      } else if (itemType === 'led') {
+        setLeds(leds.map(l => l._id === itemId ? { ...l, status: 'active' } : l));
+      } else if (itemType === 'crosswalk') {
+        setCrosswalks(crosswalks.map(cw => cw._id === itemId ? { ...cw, status: 'active' } : cw));
+      }
+
+      alert('התקלה סומנה כטופלה בהצלחה!');
+    } catch (err) {
+      console.error(err);
+      alert('שגיאה בעדכון התקלה בשרת');
+    }
   };
+
+  // סינון רכיבים שנמצאים בתקלה (error או suspended)
+  const faultyCameras = cameras.filter(c => c.status === 'error' || c.status === 'suspended');
+  const faultyLeds = leds.filter(l => l.status === 'error' || l.status === 'suspended');
+  const faultyCrosswalksList = crosswalks.filter(cw => cw.status === 'error' || cw.status === 'suspended');
+
+  // ריכוז כל פריטי החומרה התקולים לרשימה אחת נוחה לטכנאי
+  const allFaultyItems = [
+    ...faultyCrosswalksList.map(cw => ({ ...cw, itemType: 'crosswalk', title: `צומת: ${cw.street ? cw.street + ', ' : ''}${cw.city}`, fault: 'תקלת מערכת מרכזית' })),
+    ...faultyCameras.map(cam => ({ ...cam, itemType: 'camera', title: `מצלמה (IP: ${cam.ip})`, fault: `תקלת מצלמה (${cam.type})` })),
+    ...faultyLeds.map(led => ({ ...led, itemType: 'led', title: `תאורת LED (${led.color})`, fault: 'תקלת תאורה' }))
+  ];
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-slate-100 font-sans" dir="rtl">
       
-      {/* תפריט צד נקי - הוסר מלאי חלפים */}
       <aside className="w-full md:w-64 bg-slate-800 text-white p-4 md:p-6 flex flex-col md:justify-between shadow-xl z-20 shrink-0 md:h-full">
         <div>
           <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-8 text-center border-b border-slate-700 pb-4">
@@ -66,13 +160,13 @@ function TechnicianDashboard() {
             <p className="text-sm md:text-base text-slate-500 mt-1">רשימת ציוד קצה הדורש התערבות בשטח</p>
           </div>
           <div className="bg-orange-100 px-3 py-1.5 md:px-4 md:py-2 rounded-full shadow-sm text-xs md:text-sm text-orange-800 border border-orange-200 font-bold flex items-center gap-2">
-            <span>{faultyCrosswalks.length} תקלות פתוחות</span>
+            <span>{allFaultyItems.length} תקלות פתוחות</span>
           </div>
         </header>
 
         <div className="flex flex-col gap-4 md:gap-6 flex-1">
 
-          {faultyCrosswalks.length > 0 && (
+          {allFaultyItems.length > 0 && (
             <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden h-48 md:h-64 shrink-0 flex flex-col">
               <div className="bg-slate-50 p-2 border-b border-slate-200 font-bold text-slate-700 text-xs md:text-sm">
                 🗺️ פריסת תקלות גיאוגרפית
@@ -87,12 +181,12 @@ function TechnicianDashboard() {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; OpenStreetMap'
                   />
-                  {faultyCrosswalks.map((cw) => (
-                    cw.lat && cw.lng ? (
+                  {crosswalks.map((cw) => (
+                    cw.lat && cw.lng && (cw.status === 'error' || cw.status === 'suspended') ? (
                       <Marker key={cw._id} position={[cw.lat, cw.lng]}>
                         <Popup>
                           <div className="text-right font-sans" dir="rtl">
-                            <strong className="block text-red-600">{cw.location}</strong>
+                            <strong className="block text-red-600">{cw.street ? `${cw.street}, ${cw.city}` : cw.city}</strong>
                             <span className="text-xs text-gray-600">מזהה: {cw._id}</span>
                           </div>
                         </Popup>
@@ -106,75 +200,70 @@ function TechnicianDashboard() {
 
           <div className="bg-white rounded-xl shadow-md border border-slate-200 flex flex-col flex-1 overflow-hidden">
               <div className="bg-slate-50 p-4 border-b border-slate-200 font-bold text-slate-700 flex justify-between items-center text-sm md:text-base">
-                  <span>🛠️ סידור עבודה - צמתים לתיקון</span>
+                  <span>🛠️ סידור עבודה - רכיבים לתיקון</span>
               </div>
               
-              <div className="overflow-x-auto">
-                  <table className="w-full text-right min-w-[700px]">
-                      <thead className="bg-white border-b-2 border-slate-200 text-slate-500 text-sm">
-                          <tr>
-                              <th className="p-4 font-bold">מיקום הצומת</th>
-                              <th className="p-4 font-bold">מזהה מערכת</th>
-                              <th className="p-4 font-bold">תיאור התקלה</th>
-                              <th className="p-4 font-bold">תחזוקה אחרונה</th>
-                              <th className="p-4 font-bold text-center">פעולות טכנאי</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                          {faultyCrosswalks.map((cw) => (
-                              <tr key={cw._id} className="hover:bg-slate-50 transition">
-                                  <td className="p-4">
-                                      <div className="font-bold text-slate-800">{cw.location}</div>
-                                      <div className="text-xs text-slate-500 mt-1">{cw.areaName}</div>
-                                  </td>
-                                  <td className="p-4 font-mono text-sm text-slate-600">{cw._id}</td>
-                                  <td className="p-4">
-                                      <div className="flex flex-col gap-2">
-                                          {cw.cameraStatus === 'offline' && (
-                                              <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold inline-block w-fit border border-red-200 whitespace-nowrap">
-                                                  📹 נתק תקשורת - מצלמה
-                                              </span>
-                                          )}
-                                          {cw.ledStatus === 'offline' && (
-                                              <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold inline-block w-fit border border-red-200 whitespace-nowrap">
-                                                  💡 קצר/נתק - לדים
-                                              </span>
-                                          )}
-                                      </div>
-                                  </td>
-                                  <td className="p-4 text-sm text-slate-600">{cw.lastMaintenance}</td>
-                                  <td className="p-4 text-center">
-                                      <div className="flex items-center justify-center gap-2">
-                                          {cw.lat && cw.lng && (
-                                              <a 
-                                                  href={`https://waze.com/ul?ll=${cw.lat},${cw.lng}&navigate=yes`}
-                                                  target="_blank"
-                                                  rel="noreferrer"
-                                                  className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded text-xs font-bold border border-blue-200 transition inline-block whitespace-nowrap"
-                                              >
-                                                  📍 נווט ב-Waze
-                                              </a>
-                                          )}
-                                          <button 
-                                              onClick={() => handleFixHardware(cw._id)}
-                                              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs font-bold shadow transition whitespace-nowrap"
-                                          >
-                                              ✅ דווח כתוקן
-                                          </button>
-                                      </div>
-                                  </td>
-                              </tr>
-                          ))}
-                          {faultyCrosswalks.length === 0 && (
-                              <tr>
-                                  <td colSpan="5" className="p-10 text-center text-slate-500 font-medium text-base md:text-lg">
-                                      🎉 אין תקלות חומרה פתוחות! כל הצמתים תקינים.
-                                  </td>
-                              </tr>
-                          )}
-                      </tbody>
-                  </table>
-              </div>
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center p-12">
+                  <div className="w-8 h-8 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin mb-2"></div>
+                  <span className="text-slate-500 text-sm">טוען קריאות שירות מהשרת...</span>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-right min-w-[700px]">
+                        <thead className="bg-white border-b-2 border-slate-200 text-slate-500 text-sm">
+                            <tr>
+                                <th className="p-4 font-bold">סוג רכיב / מיקום</th>
+                                <th className="p-4 font-bold">מזהה מערכת</th>
+                                <th className="p-4 font-bold">תיאור התקלה</th>
+                                <th className="p-4 font-bold text-center">פעולות טכנאי</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {allFaultyItems.map((item) => (
+                                <tr key={item._id} className="hover:bg-slate-50 transition">
+                                    <td className="p-4">
+                                        <div className="font-bold text-slate-800">{item.title}</div>
+                                    </td>
+                                    <td className="p-4 font-mono text-sm text-slate-600">{item._id}</td>
+                                    <td className="p-4">
+                                        <span className="bg-red-100 text-red-700 px-2.5 py-1 rounded text-xs font-bold inline-block border border-red-200 whitespace-nowrap">
+                                            🔴 {item.fault}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-center">
+                                        <div className="flex items-center justify-center gap-2">
+                                            {item.lat && item.lng && (
+                                                <a 
+                                                    href={`https://waze.com/ul?ll=${item.lat},${item.lng}&navigate=yes`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded text-xs font-bold border border-blue-200 transition inline-block whitespace-nowrap"
+                                                >
+                                                    📍 נווט ב-Waze
+                                                </a>
+                                            )}
+                                            <button 
+                                                onClick={() => handleFixHardware(item.itemType, item._id)}
+                                                className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-xs font-bold shadow transition whitespace-nowrap"
+                                            >
+                                                ✅ דווח כתוקן
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {allFaultyItems.length === 0 && (
+                                <tr>
+                                    <td colSpan="4" className="p-10 text-center text-slate-500 font-medium text-base md:text-lg">
+                                        🎉 אין תקלות חומרה פתוחות! כל המערכות תקינות.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+              )}
           </div>
 
         </div>

@@ -4,22 +4,15 @@ import { useNavigate } from 'react-router-dom';
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const systemUsers = [
-    { username: 'admin', password: '123456', role: 'admin', path: '/admin' },
-    { username: 'manager', password: '123456', role: 'manager', path: '/manager' },
-    { username: 'tech', password: '123456', role: 'technician', path: '/technician' },
-    { username: 'dispatcher', password: '123456', role: 'dispatcher', path: '/dispatcher' },
-    { username: 'david_1', password: '123456', role: 'dispatcher', path: '/dispatcher' } 
-  ];
-
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     
     const trimmedUser = username.trim().toLowerCase();
-
     const englishOnlyRegex = /^[a-z0-9_]+$/;
+    
     if (!englishOnlyRegex.test(trimmedUser)) {
       alert('שם המשתמש חייב להיות באנגלית בלבד (ללא עברית או רווחים).');
       return;
@@ -30,26 +23,39 @@ function Login() {
       return;
     }
 
-    const foundUser = systemUsers.find(u => u.username === trimmedUser);
-
-    if (!foundUser) {
-      alert('שם המשתמש אינו קיים במערכת.');
-      return;
-    }
-
-    if (foundUser.password !== password) {
-      alert('הסיסמה שגויה. אנא נסה שוב.');
-      return;
-    }
+    setIsLoading(true);
 
     try {
-      const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock.token";
-      localStorage.setItem('token', mockToken);
+      const apiUrl = import.meta.env.VITE_API_URL;
       
-      navigate(foundUser.path);
+      // שליחת בקשת התחברות אמיתית לשרת
+      const response = await fetch(`${apiUrl}/users/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: trimmedUser, password })
+      });
+
+      if (!response.ok) {
+        throw new Error('שם המשתמש או הסיסמה שגויים.');
+      }
+
+      const data = await response.json();
+      
+      // שמירת הטוקן האמיתי ב-localStorage
+      localStorage.setItem('token', data.token);
+
+      // ניתוב אוטומטי לפי התפקיד (Role) שהשרת מחזיר
+      const role = data.user?.role?.toLowerCase();
+      
+      if (role === 'admin') navigate('/admin');
+      else if (role === 'manager') navigate('/manager');
+      else if (role === 'technician') navigate('/technician');
+      else navigate('/dispatcher'); // ברירת מחדל למוקדן
 
     } catch (error) {
-      alert("שגיאה בהתחברות. אנא נסה שוב.");
+      alert(error.message || "שגיאה בהתחברות מול השרת. אנא בדוק את החיבור.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -95,9 +101,10 @@ function Login() {
 
           <button 
             type="submit" 
-            className="w-full py-3.5 mt-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl shadow-[0_0_15px_rgba(37,99,235,0.5)] hover:shadow-[0_0_25px_rgba(37,99,235,0.7)] transition-all duration-300 cursor-pointer"
+            disabled={isLoading}
+            className="w-full py-3.5 mt-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-400 text-white font-semibold rounded-xl shadow-[0_0_15px_rgba(37,99,235,0.5)] hover:shadow-[0_0_25px_rgba(37,99,235,0.7)] transition-all duration-300 cursor-pointer flex items-center justify-center"
           >
-            התחבר למערכת
+            {isLoading ? 'מתחבר לשרת...' : 'התחבר למערכת'}
           </button>
         </form>
 

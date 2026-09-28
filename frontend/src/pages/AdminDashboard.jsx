@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import io from 'socket.io-client';
+import { io } from 'socket.io-client';
 
 const socket = io('http://localhost:5000'); 
 
@@ -213,7 +213,7 @@ function AdminDashboard() {
   };
 
   const handleCreateInfraClick = () => {
-    setInfraFormData({ status: 'active', type: 'LPR (זיהוי לוחיות)', color: 'אדום' }); 
+    setInfraFormData({ status: 'active', type: 'LPR (זיהוי לוחיות)', color: 'אדום', isSchoolZone: false }); 
     setIsInfraEditMode(false);
     setIsInfraModalOpen(true);
   };
@@ -440,18 +440,21 @@ function AdminDashboard() {
               <table className="w-full text-right min-w-[700px]">
                  <thead className="bg-white border-b-2 border-slate-200 text-slate-500 text-sm">
                     <tr>
-                       <th className="p-4 font-bold">מזהה (ID)</th>
-                       <th className="p-4 font-bold">שם / מיקום</th>
-                       <th className="p-4 font-bold">פרטים נוספים</th>
-                       <th className="p-4 font-bold">סטטוס</th>
-                       <th className="p-4 font-bold text-center">פעולות</th>
+                        <th className="p-4 font-bold">מזהה (ID)</th>
+                        <th className="p-4 font-bold">שם / מיקום</th>
+                        <th className="p-4 font-bold">פרטים נוספים</th>
+                        <th className="p-4 font-bold">סטטוס</th>
+                        <th className="p-4 font-bold text-center">פעולות</th>
                     </tr>
                  </thead>
                  <tbody className="divide-y divide-slate-100">
                     {filteredData.map(item => (
                       <tr key={item._id} className="hover:bg-slate-50">
                         <td className="p-4 font-mono text-sm text-slate-500">{item._id ? item._id.substring(0, 8) + '...' : ''}</td>
-                        <td className="p-4 font-bold text-slate-700">{item.name}</td>
+                        <td className="p-4 font-bold text-slate-700">
+                          {item.name} 
+                          {item.isSchoolZone && <span className="mr-2 bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full border border-amber-300">🏫 סביבת בית ספר</span>}
+                        </td>
                         <td className="p-4 text-sm text-slate-600">
                            {infraSubTab === 'junctions' && `כתובת: ${item.street ? item.street + ', ' : ''}${item.city} | ${item.lat || ''},${item.lng || ''}`}
                            {infraSubTab === 'cameras' && `IP: ${item.ip} | סוג: ${item.type}`}
@@ -511,14 +514,15 @@ function AdminDashboard() {
         )}
       </main>
 
+      {/* Modal יצירת/עריכת משתמש */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 max-h-[90vh] overflow-y-auto">
              <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
               <h3 className="text-xl font-bold text-slate-800">👤 יצירת משתמש חדש</h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-red-500 font-bold text-lg transition">✕</button>
-            </div>
-            <form onSubmit={handleCreateUser} className="grid grid-cols-2 gap-4">
+             </div>
+             <form onSubmit={handleCreateUser} className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className="block text-sm font-bold text-slate-700 mb-1">שם מלא *</label>
                 <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full p-2 border border-slate-300 rounded text-sm outline-none focus:border-purple-500" required />
@@ -561,6 +565,7 @@ function AdminDashboard() {
         </div>
       )}
 
+      {/* Modal כרטיסיית משתמש */}
       {selectedUser && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 max-h-[90vh] overflow-y-auto">
@@ -661,6 +666,7 @@ function AdminDashboard() {
         </div>
       )}
 
+      {/* Modal יצירת/עריכת תשתיות (צמתים, מצלמות, לד) */}
       {isInfraModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 max-h-[90vh] overflow-y-auto">
@@ -672,7 +678,7 @@ function AdminDashboard() {
             </div>
 
             <form onSubmit={handleSaveInfraUpdate} className="flex flex-col gap-4">
-              
+             
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">שם / תיאור</label>
@@ -712,6 +718,20 @@ function AdminDashboard() {
                         className="w-full p-2 border border-slate-300 rounded text-sm" 
                       />
                     </div>
+                  </div>
+
+                  {/* 👇 שדה סביבת בית ספר (Checkbox) */}
+                  <div className="flex items-center gap-2 mb-3 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                    <input 
+                      type="checkbox" 
+                      id="isSchoolZone"
+                      checked={infraFormData.isSchoolZone || false}
+                      onChange={(e) => setInfraFormData({...infraFormData, isSchoolZone: e.target.checked})}
+                      className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <label htmlFor="isSchoolZone" className="text-sm font-bold text-amber-900 cursor-pointer">
+                      🏫 האם צומת זה ממוקם בסביבת מוסד חינוך?
+                    </label>
                   </div>
 
                   <div className="mb-4 flex justify-end">

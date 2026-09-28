@@ -52,7 +52,7 @@ function DispatcherDashboard() {
         setAlerts(alertsHistory);
         
       } catch (err) {
-        console.error("Error fetching data:", err);
+        console.error(err);
         setError("לא הצלחנו למשוך את הנתונים מהשרת. בדוק את החיבור.");
       } finally {
         setIsLoading(false);
@@ -102,14 +102,14 @@ function DispatcherDashboard() {
         throw new Error('שגיאה בעדכון הסטטוס בשרת');
       }
     } catch (err) {
-      console.error("Error updating alert status:", err);
+      console.error(err);
       alert("לא ניתן לעדכן את הסטטוס מול השרת");
     }
   };
 
   const filteredCrosswalks = crosswalksData.filter(cw => 
-    (cw.location && cw.location.includes(searchTerm)) || 
-    (cw.areaName && cw.areaName.includes(searchTerm)) ||
+    (cw.city && cw.city.includes(searchTerm)) || 
+    (cw.street && cw.street.includes(searchTerm)) ||
     (cw._id && cw._id.includes(searchTerm))
   );
 
@@ -126,9 +126,10 @@ function DispatcherDashboard() {
     return <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded font-bold text-xs border border-blue-200 whitespace-nowrap">🔵 נמוך</span>;
   };
 
-  const getCrosswalkStatusBadge = (status, isActive) => {
-    if (isActive || status === 'active') return <span className="text-green-600 bg-green-50 px-2 py-1 rounded border border-green-200 text-xs font-bold whitespace-nowrap">פעיל</span>;
-    if (status === 'warning') return <span className="text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-200 text-xs font-bold whitespace-nowrap">תקלה</span>;
+  const getCrosswalkStatusBadge = (status) => {
+    if (status === 'active') return <span className="text-green-600 bg-green-50 px-2 py-1 rounded border border-green-200 text-xs font-bold whitespace-nowrap">פעיל</span>;
+    if (status === 'error') return <span className="text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200 text-xs font-bold whitespace-nowrap">תקלה</span>;
+    if (status === 'suspended') return <span className="text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-200 text-xs font-bold whitespace-nowrap">מושבת</span>;
     return <span className="text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-300 text-xs font-bold whitespace-nowrap">מנותק</span>;
   };
 
@@ -204,10 +205,9 @@ function DispatcherDashboard() {
                                 <Marker key={cw._id} position={[cw.lat, cw.lng]}>
                                     <Popup>
                                         <div className="text-right font-sans" dir="rtl">
-                                            <strong className="block text-blue-700">{cw.location}</strong>
-                                            <span className="text-xs text-gray-600 block mb-1">{cw.areaName}</span>
-                                            <span className="text-xs font-bold">
-                                                סטטוס: {cw.isActive ? '🟢 פעיל' : '🔴 מנותק'}
+                                            <strong className="block text-blue-700">{cw.street ? `${cw.street}, ${cw.city}` : cw.city}</strong>
+                                            <span className="text-xs font-bold block mt-1">
+                                                סטטוס: {cw.status === 'active' ? '🟢 פעיל' : cw.status === 'error' ? '🔴 תקלה' : '🟠 מושבת'}
                                             </span>
                                         </div>
                                     </Popup>
@@ -226,7 +226,7 @@ function DispatcherDashboard() {
                     </div>
                     <input 
                       type="text" 
-                      placeholder="חיפוש לפי רחוב, אזור או מזהה..." 
+                      placeholder="חיפוש לפי עיר, רחוב או מזהה..." 
                       className="w-full p-2 border border-slate-300 rounded text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -240,11 +240,12 @@ function DispatcherDashboard() {
                             className="p-3 border border-slate-200 rounded-lg shadow-sm hover:shadow-md transition bg-white flex flex-col gap-2 cursor-pointer hover:border-blue-400 hover:bg-blue-50 group"
                         >
                             <div className="flex justify-between items-start">
-                                <span className="font-bold text-sm text-slate-800 group-hover:text-blue-700">{cw.location}</span>
-                                {getCrosswalkStatusBadge(cw.status, cw.isActive)}
+                                <span className="font-bold text-sm text-slate-800 group-hover:text-blue-700">
+                                  {cw.street ? `${cw.street}, ${cw.city}` : cw.city}
+                                </span>
+                                {getCrosswalkStatusBadge(cw.status)}
                             </div>
                             <div className="flex justify-between items-center text-xs text-slate-500 mt-1">
-                                <span>{cw.areaName || cw.areaname}</span>
                                 <span className="bg-slate-100 px-2 py-1 rounded flex items-center gap-1 font-mono">
                                     {cw._id}
                                 </span>
@@ -333,7 +334,7 @@ function DispatcherDashboard() {
                                     </td>
                                     <td className="p-4 whitespace-nowrap">
                                         <div className="text-sm font-bold text-slate-800">{alert.location}</div>
-                                        <div className="text-xs text-slate-500 mt-1">{alert.areaName} ({alert.areaId})</div>
+                                        <div className="text-xs text-slate-500 mt-1">{alert.areaName}</div>
                                     </td>
                                     <td className="p-4 whitespace-nowrap">
                                         <div className="flex flex-col gap-1 font-mono text-xs text-slate-600">
