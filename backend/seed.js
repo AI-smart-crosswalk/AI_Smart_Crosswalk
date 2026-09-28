@@ -40,6 +40,55 @@ const seedIfEmpty = async (Model, docs, name) => {
     console.log(`- ${name}: inserted ${docs.length} docs`);
 };
 
+// Insert only the demo docs whose _id is not in the DB yet (never overwrites
+// docs an Admin already edited). Used for the fixed-id infra demo data.
+const seedMissing = async (Model, docs, name) => {
+    const existing = new Set((await Model.find({}, '_id').lean()).map((d) => String(d._id)));
+    const missing = docs.filter((d) => !existing.has(String(d._id)));
+    if (missing.length) await Model.insertMany(missing);
+    console.log(`- ${name}: inserted ${missing.length} missing demo docs`);
+};
+
+// Demo data for the Manager dashboard: handled alerts (isResolved + resolvedAt)
+// spread over the last 7 days across the demo crosswalks. Runs only while the DB
+// has no handled alerts at all, so it never duplicates.
+const seedDemoAnalytics = async () => {
+    if (await Alert.exists({ isResolved: true })) {
+        console.log('- analytics demo: handled alerts already exist, skipping');
+        return;
+    }
+    const crosswalks = await Crosswalk.find().lean();
+    const cameras = await Camera.find().lean();
+    if (!crosswalks.length) return;
+
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const alerts = [];
+    const now = Date.now();
+    for (let i = 0; i < 60; i++) {
+        const cw = pick(crosswalks);
+        const cam = cameras.find((c) => String(c.junctionId) === String(cw._id));
+        const personType = cw.isSchoolZone
+            ? pick(['child', 'child', 'child', 'adult', 'wheeled'])
+            : pick(['adult', 'adult', 'child', 'wheeled', 'unknown']);
+        const severity = pick(['High', 'Medium', 'Medium', 'Low', 'Low', 'Low']);
+        const timestamp = new Date(now - Math.random() * 7 * 24 * 3600 * 1000);
+        const resolvedAt = new Date(timestamp.getTime() + (1 + Math.random() * 9) * 60 * 1000); // 1-10 min
+        alerts.push({
+            crosswalkId: String(cw._id),
+            cameraId: cam ? String(cam._id) : 'demo',
+            description: 'התרעת דמו לדאשבורד המנהל',
+            severity,
+            personType,
+            confidence: 60 + Math.round(Math.random() * 40),
+            isResolved: true,
+            resolvedAt: resolvedAt > new Date(now) ? new Date(now) : resolvedAt,
+            timestamp,
+        });
+    }
+    await Alert.insertMany(alerts);
+    console.log(`- analytics demo: inserted ${alerts.length} handled alerts (last 7 days)`);
+};
+
 // ONE-TIME migration: the Sprint 4 infra schema replaced the old demo docs
 // (string ids "cw_001", crosswalkId, location, On/Off...). If ANY old-format doc
 // is still in the DB, wipe crosswalks/cameras/leds/alerts (all demo data) so they
@@ -89,14 +138,17 @@ const run = async () => {
 
     await seedFirstAdmin();
     await clearOldSchemaData();   // one-time: removes old-format demo data (users are never touched)
-    await seedIfEmpty(Crosswalk, data.crosswalks, 'crosswalks');
-    await seedIfEmpty(Camera, data.cameras, 'cameras');
-    await seedIfEmpty(LED, data.leds, 'leds');
+    await seedMissing(Crosswalk, data.crosswalks, 'crosswalks');
+    await seedMissing(Camera, data.cameras, 'cameras');
+    await seedMissing(LED, data.leds, 'leds');
+    // Crosswalks created before isSchoolZone existed -> explicit false.
+    await Crosswalk.updateMany({ isSchoolZone: { $exists: false } }, { $set: { isSchoolZone: false } });
 
     // Alerts in the dummy use string _id ("alert_001"); strip it so Mongo
     // assigns a normal ObjectId (matching real alerts from the AI).
     const alerts = data.alerts.map(({ _id, ...rest }) => rest);
     await seedIfEmpty(Alert, alerts, 'alerts');
+    await seedDemoAnalytics();
 
     await mongoose.connection.close();
     console.log('Seed complete.');

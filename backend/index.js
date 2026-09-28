@@ -26,7 +26,8 @@ import crosswalkRoutes from './routes/crosswalkRoutes.js';
 import cameraRoutes from './routes/cameraRoutes.js';
 import ledRoutes from './routes/ledRoutes.js';
 import userRoutes from './routes/userRoutes.js';        // auth (from yosi-B1)
-import detectRoutes from './routes/detectRoutes.js';    // AI service bridge (single image)
+import detectRoutes from './routes/detectRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js'; // Manager dashboard stats    // AI service bridge (single image)
 import { initSocket, watchAlerts } from './config/socket.js';
 
 dotenv.config();
@@ -56,6 +57,7 @@ app.use('/api/crosswalks', crosswalkRoutes);
 app.use('/api/cameras', cameraRoutes);
 app.use('/api/leds', ledRoutes);
 app.use('/api/users', userRoutes);        // login + Admin user management
+app.use('/api/analytics', analyticsRoutes);  // GET /dashboard?filter=top5|school|all
 app.use('/api/detect', detectRoutes);     // POST /  (one image -> detections), Yossef's route, was never mounted
 
 // Start listening

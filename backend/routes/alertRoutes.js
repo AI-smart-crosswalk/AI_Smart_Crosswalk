@@ -16,6 +16,7 @@ import { createAlert, fetchAllAlerts, updateAlert } from '../services/alertServi
 import authenticate from '../middleware/authenticationMiddleware.js';
 import authorize from '../middleware/authorizationMiddleware.js';
 import apiKey from '../middleware/apiKeyMiddleware.js';
+import { emitAlertResolved } from '../config/socket.js';
 
 const router = express.Router();
 
@@ -43,12 +44,14 @@ router.get('/', authenticate, authorize('Admin', 'Manager', 'Dispatcher', 'Techn
 // PUT /api/alerts/:id - update an alert (e.g. { "isResolved": true }).
 router.put('/:id', authenticate, authorize('Admin', 'Dispatcher', 'Technician'), async (req, res) => {
     try {
-        const updated = await updateAlert(req.params.id, req.body);
+        const { alert: updated, justResolved } = await updateAlert(req.params.id, req.body);
         if (!updated) {
             return res.status(404).json({ message: 'Alert not found' });
         }
 
-        // No manual emit: the change stream in config/socket.js pushes 'alertUpdated' to the frontend.
+        // The change stream in config/socket.js still pushes 'alertUpdated'.
+        // On the "handled" click (false -> true) also tell the Manager dashboard to refetch analytics.
+        if (justResolved) emitAlertResolved(updated);
         res.json(updated);
     } catch (error) {
         res.status(400).json({ message: error.message });

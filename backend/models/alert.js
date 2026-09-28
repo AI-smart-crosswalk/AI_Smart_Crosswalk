@@ -28,7 +28,7 @@ const alertSchema = new mongoose.Schema({
     distanceFromCrosswalk: { type: Number, default: null },       // meters from the crossing (approach distance)
     approachSpeed: { type: Number },               // m/s toward the crossing (optional)
     confidence: { type: Number },                  // 0-100, how confident the case is dangerous
-    personType: { type: String, enum: ['child', 'adult', 'unknown'], default: null },
+    personType: { type: String, enum: ['child', 'adult', 'wheeled', 'unknown'], default: null }, // wheeled = bicycle/motorcycle (AI sends it)
     distracted: { type: Boolean, default: false }, // e.g. looking at a phone
     severity: { type: String, enum: ['Low', 'Medium', 'High'], default: 'Low' },
 
@@ -39,6 +39,7 @@ const alertSchema = new mongoose.Schema({
     // --- Evidence / lifecycle ---
     imageUrl: { type: String, default: null },                    // Cloudinary URL of the snapshot
     isResolved: { type: Boolean, default: false }, // has an operator handled it
+    resolvedAt: { type: Date, default: null },     // set by the server when isResolved becomes true (response-time stats)
     timestamp: { type: Date, default: Date.now }   // when the event happened
 });
 

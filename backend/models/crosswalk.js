@@ -17,6 +17,7 @@ const crosswalkSchema = new mongoose.Schema({
     street: { type: String, default: '' },                                     // e.g. "אבן גבירול 10" (may be empty)
     lat: { type: Number },                                                     // latitude  (frontend sends a string; Mongoose casts it)
     lng: { type: Number },                                                     // longitude
+    isSchoolZone: { type: Boolean, default: false },                           // near a school (Manager dashboard filter=school)
 });
 
 const Crosswalk = mongoose.model("Crosswalk", crosswalkSchema);

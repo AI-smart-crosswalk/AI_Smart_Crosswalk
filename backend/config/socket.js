@@ -10,6 +10,7 @@
  *   - initSocket(server): attaches Socket.io to the HTTP server.
  *   - getIO():            returns the shared Socket.io instance.
  *   - emitInfra():      pushes infra_added / infra_updated to the Admin page.
+ *   - emitAlertResolved(): pushes alert_resolved to the Manager dashboard.
  *   - watchAlerts():      listens to the Alerts collection (MongoDB change
  *                         stream) and emits a "newAlert" event on every insert,
  *                         so new alerts reach the frontend live.
@@ -55,6 +56,20 @@ export const emitInfra = (event, type, payload) => {
     } catch (err) {
         // The DB write already succeeded - a socket problem must not fail the request.
         console.error(`Failed to emit ${event}: ${err.message}`);
+    }
+};
+
+/**
+ * Manager dashboard sync: emitted when an operator marks an alert as handled
+ * (isResolved false -> true). The dashboard listens and re-fetches
+ * GET /api/analytics/dashboard with its current filter.
+ */
+export const emitAlertResolved = (alert) => {
+    try {
+        getIO().emit('alert_resolved', { _id: alert._id, crosswalkId: alert.crosswalkId });
+        console.log(`Live: emitted alert_resolved ${alert._id}`);
+    } catch (err) {
+        console.error(`Failed to emit alert_resolved: ${err.message}`);
     }
 };
 
