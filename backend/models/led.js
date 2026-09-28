@@ -1,22 +1,18 @@
-// PROVENANCE: [RACHE] your model.
-/* ============================================================
- * SANDBOX FILE - SETTLED. Copied UNCHANGED from your real repo (branch sprint4-rache).
- * ============================================================ */
-
 /**
  * models/led.js
  * -------------
  * Mongoose schema for the LED strip embedded in the road at a crosswalk.
- * Matches the "leds" section of dummy-data.json. `status` is what turns the
- * physical warning lights On/Off.
+ * Matches the structure the frontend Admin page sends (infra management).
  */
 import mongoose from "mongoose";
+import { INFRA_STATUSES } from "./crosswalk.js";
 
 const ledSchema = new mongoose.Schema({
-    id: { type: String, required: true },          // LED code, e.g. "led_101"
-    crosswalkId: { type: String, required: true }, // the crosswalk it belongs to, e.g. "cw_001"
-    status: { type: String, enum: ['On', 'Off'], default: 'Off' }, // are the road lights lit
-    lastUpdated: { type: Date, default: Date.now } // last time the status changed
+    name: { type: String, required: true },                                   // e.g. "פס תאורה מערבי"
+    status: { type: String, enum: INFRA_STATUSES, default: 'active' },        // LED health
+    color: { type: String, default: '' },                                      // "אדום" | "ירוק" | "כתום"
+    junctionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Crosswalk', required: true }, // the crosswalk it belongs to
+    lastUpdated: { type: Date, default: Date.now },                            // last time it changed
 });
 
 const LED = mongoose.model("LED", ledSchema);

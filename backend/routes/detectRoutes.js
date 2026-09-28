@@ -1,16 +1,16 @@
 /* ============================================================
  * SANDBOX - backend route that forwards an image to the AI service.
  * PROVENANCE: structure = YOSSEF's routes (express.Router + service handler).
- *             [CHANGED] auth left PUBLIC for now (his other routes used authMiddleware;
- *             this one is an internal backend<->AI call, so no user JWT).
+ *             [CHANGED] protected by x-api-key (sensor call, no user JWT).
  *   POST /api/detect  { imagePath }  -> detections
  * ============================================================ */
 import express from "express";                              
-import detectService from "../services/detectService.js";   
+import detectService from "../services/detectService.js";
+import apiKey from "../middleware/apiKeyMiddleware.js";   // sensor/AI call, no user JWT   
 
 const router = express.Router();                            
 
 
-router.post("/", detectService.detectObjects);             
+router.post("/", apiKey, detectService.detectObjects);             
 
 export default router;                                      

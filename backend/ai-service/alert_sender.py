@@ -76,6 +76,10 @@ class AlertSender:
         self._queue: "queue.Queue" = queue.Queue(maxsize=max_queue)
         self._worker: threading.Thread | None = None
         self._session = requests.Session()
+        if config.SENSOR_API_KEY:                  # backend protects POST /api/alerts with x-api-key
+            self._session.headers["x-api-key"] = config.SENSOR_API_KEY
+        else:
+            print("[WARN] SENSOR_API_KEY is not set - the backend will reject alerts (401).")
         self.delivered = 0
         self.failed = 0
 

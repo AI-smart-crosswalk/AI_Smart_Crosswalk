@@ -7,7 +7,7 @@
  * routes/alertRoutes.js
  * ---------------------
  * HTTP endpoints for alerts (mounted at /api/alerts).
- *   POST   /     -> create a new alert (used by the AI node)
+ *   POST   /     -> create a new alert (sensor / AI service, x-api-key)
  *   GET    /     -> list all alerts from the database (newest first)
  *   PUT    /:id  -> update an alert (e.g. mark resolved)
  */
@@ -15,14 +15,13 @@ import express from 'express';
 import { createAlert, fetchAllAlerts, updateAlert } from '../services/alertService.js';
 import authenticate from '../middleware/authenticationMiddleware.js';
 import authorize from '../middleware/authorizationMiddleware.js';
+import apiKey from '../middleware/apiKeyMiddleware.js';
 
 const router = express.Router();
 
 // POST /api/alerts - create a new alert via the service (uploads image + saves).
-// NOT authenticated: this is called by the AI service, not a logged-in browser user.
-// TODO (frontend/AI): if this needs to be locked down, the AI service must send a
-// token/API key of its own first - do not just add authenticate here or it breaks the AI -> backend flow.
-router.post('/', async (req, res) => {
+// Called by the sensor / AI service, not a logged-in user: protected by x-api-key, not a JWT.
+router.post('/', apiKey, async (req, res) => {
     try {
         const savedAlert = await createAlert(req.body);
         res.status(201).json(savedAlert);
@@ -42,7 +41,7 @@ router.get('/', authenticate, authorize('Admin', 'Manager', 'Dispatcher', 'Techn
 });
 
 // PUT /api/alerts/:id - update an alert (e.g. { "isResolved": true }).
-router.put('/:id', authenticate, authorize('Admin', 'Manager', 'Dispatcher'), async (req, res) => {
+router.put('/:id', authenticate, authorize('Admin', 'Dispatcher', 'Technician'), async (req, res) => {
     try {
         const updated = await updateAlert(req.params.id, req.body);
         if (!updated) {

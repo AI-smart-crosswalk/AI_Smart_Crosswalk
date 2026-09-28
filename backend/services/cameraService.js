@@ -1,18 +1,12 @@
-// PROVENANCE: [RACHE] your service.
-/* ============================================================
- * SANDBOX FILE - SETTLED. Copied UNCHANGED from your real repo (branch sprint4-rache).
- * ============================================================ */
-
 /**
  * services/cameraService.js
  * -------------------------
- * Handles cameras: create a camera, get all cameras,
- * and get cameras for a specific crosswalk.
+ * Handles cameras: create, get all, get by crosswalk, update.
  */
 
 import Camera from '../models/camera.js';
 
-// Create and save a new camera document.
+// Create and save a new camera document (Mongo assigns the _id).
 export const createCamera = async (cameraData) => {
     const newCamera = new Camera(cameraData);
     return await newCamera.save();
@@ -23,16 +17,16 @@ export const fetchAllCameras = async () => {
     return await Camera.find();
 };
 
-// Return only the cameras that belong to a given crosswalk.
-export const fetchCamerasByCrosswalk = async (crosswalkId) => {
-    return await Camera.find({ crosswalkId });
+// Return only the cameras that belong to a given crosswalk (junctionId = crosswalk _id).
+export const fetchCamerasByJunction = async (junctionId) => {
+    return await Camera.find({ junctionId });
 };
 
-// Update a camera by its code (the `id` field, e.g. "cam_101") - NOT Mongo's _id.
-// Partial update; also refreshes lastUpdated. Returns null if not found.
+// Update a camera by its _id. Partial update; also refreshes lastUpdated.
+// Returns null if not found.
 export const updateCamera = async (id, updates) => {
-    return await Camera.findOneAndUpdate(
-        { id },
+    return await Camera.findByIdAndUpdate(
+        id,
         { ...updates, lastUpdated: Date.now() },
         { returnDocument: 'after', runValidators: true }
     );

@@ -9,6 +9,7 @@
  * Sets up Socket.io for real-time updates to the frontend.
  *   - initSocket(server): attaches Socket.io to the HTTP server.
  *   - getIO():            returns the shared Socket.io instance.
+ *   - emitInfra():      pushes infra_added / infra_updated to the Admin page.
  *   - watchAlerts():      listens to the Alerts collection (MongoDB change
  *                         stream) and emits a "newAlert" event on every insert,
  *                         so new alerts reach the frontend live.
@@ -37,6 +38,24 @@ export const initSocket = (httpServer) => {
 export const getIO = () => {
     if (!io) throw new Error('Socket.io not initialized. Call initSocket first.');
     return io;
+};
+
+/**
+ * Infra live updates (Admin page).
+ * Called by the crosswalk / camera / LED routes AFTER a successful DB write, so
+ * every connected Admin sees the change. Events the frontend listens to:
+ *   "infra_added"   (after POST)  -> { type, payload }
+ *   "infra_updated" (after PUT)   -> { type, payload }
+ * type = "crosswalk" | "camera" | "led", payload = the full saved document (with _id).
+ */
+export const emitInfra = (event, type, payload) => {
+    try {
+        getIO().emit(event, { type, payload });
+        console.log(`Live: emitted ${event} (${type}) ${payload?._id}`);
+    } catch (err) {
+        // The DB write already succeeded - a socket problem must not fail the request.
+        console.error(`Failed to emit ${event}: ${err.message}`);
+    }
 };
 
 /**

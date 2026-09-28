@@ -42,8 +42,9 @@ ROI_ANCHOR = "bottom_center"       # "bottom_center" (feet) or "center"
 ALERT_COOLDOWN_SECONDS = 1.0
 
 # --- Alert identity (belongs to the backend under Option B) ---
-CROSSWALK_ID = "cw_001"
-CAMERA_ID = "cam_101"
+# _id values of the demo crosswalk / camera created by backend/seed.js (dummy-data.json)
+CROSSWALK_ID = "66f1a0000000000000000001"
+CAMERA_ID = "66f1b0000000000000000001"
 
 
 # ============================================================
@@ -110,6 +111,25 @@ WHEELED_MIN_HEIGHT_PX = 30         # ignore tiny wheeled boxes (far-away jitter)
 # deployed Render backend so the live web dashboard sees the alerts (see below).
 API_URL = os.environ.get("API_URL", "http://localhost:3000/api/alerts")
 API_TIMEOUT_SECONDS = 5
+
+
+def _read_backend_env(name: str) -> str:
+    """Read one value from backend/.env (no python-dotenv dependency)."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith(f"{name}="):
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except OSError:
+        pass
+    return ""
+
+
+# Sent as the x-api-key header on every alert (backend: middleware/apiKeyMiddleware.js).
+# Env var wins; otherwise the same value is read from backend/.env.
+SENSOR_API_KEY = os.environ.get("SENSOR_API_KEY") or _read_backend_env("SENSOR_API_KEY")
 API_ENABLED = True                   # False = analyse only, print events, no HTTP
 MIN_FRAMES_FOR_ALERT = 3             # a person must be seen in >= 3 analysed frames before any alert (motion + phone need history)
 INCIDENT_QUIET_SECONDS = 3.0         # one alert per crosswalk incident; it ends after this long with no risky person (then a new alert can fire)

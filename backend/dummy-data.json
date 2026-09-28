@@ -1,49 +1,71 @@
 {
   "crosswalks": [
     {
-      "_id": "cw_001",
-      "areaId": "area_holon_01",
-      "areaName": "מרכז העיר",
-      "location": "הרצל 45, חולון",
-      "lat": 32.0158,
-      "lng": 34.7874,
+      "_id": "66f1a0000000000000000001",
+      "name": "צומת הרצל",
+      "status": "active",
       "city": "חולון",
-      "ledCommandUrl": "http://api.smartcity.com/leds/activate/cw_001",
-      "isActive": true,
-      "cameras": [
-        "cam_101",
-        "cam_102"
-      ]
+      "street": "הרצל 45",
+      "lat": 32.0158,
+      "lng": 34.7874
     },
     {
-      "_id": "cw_002",
-      "areaId": "area_tlv_03",
-      "areaName": "צפון תל אביב",
-      "location": "אבן גבירול 10, תל אביב",
-      "lat": 32.0684,
-      "lng": 34.7805,
+      "_id": "66f1a0000000000000000002",
+      "name": "צומת אבן גבירול",
+      "status": "active",
       "city": "תל אביב",
-      "ledCommandUrl": "http://api.smartcity.com/leds/activate/cw_002",
-      "isActive": true,
-      "cameras": [
-        "cam_201"
-      ]
+      "street": "אבן גבירול 10",
+      "lat": 32.0684,
+      "lng": 34.7805
     }
   ],
   "cameras": [
-    { "id": "cam_101", "crosswalkId": "cw_001", "status": "Active", "lastUpdated": "2026-07-13T08:00:00Z" },
-    { "id": "cam_102", "crosswalkId": "cw_001", "status": "Inactive", "lastUpdated": "2026-07-13T08:00:00Z" },
-    { "id": "cam_201", "crosswalkId": "cw_002", "status": "Active", "lastUpdated": "2026-07-13T08:00:00Z" }
+    {
+      "_id": "66f1b0000000000000000001",
+      "name": "מצלמה צפונית - הרצל",
+      "status": "active",
+      "ip": "192.168.1.10",
+      "type": "PTZ (ממונעת)",
+      "junctionId": "66f1a0000000000000000001"
+    },
+    {
+      "_id": "66f1b0000000000000000002",
+      "name": "מצלמה דרומית - הרצל",
+      "status": "error",
+      "ip": "192.168.1.11",
+      "type": "LPR (זיהוי לוחיות)",
+      "junctionId": "66f1a0000000000000000001"
+    },
+    {
+      "_id": "66f1b0000000000000000003",
+      "name": "מצלמה ראשית - אבן גבירול",
+      "status": "active",
+      "ip": "192.168.2.10",
+      "type": "Thermal (תרמית)",
+      "junctionId": "66f1a0000000000000000002"
+    }
   ],
   "leds": [
-    { "id": "led_101", "crosswalkId": "cw_001", "status": "On", "lastUpdated": "2026-07-13T08:00:00Z" },
-    { "id": "led_201", "crosswalkId": "cw_002", "status": "Off", "lastUpdated": "2026-07-13T08:00:00Z" }
+    {
+      "_id": "66f1c0000000000000000001",
+      "name": "פס תאורה מערבי - הרצל",
+      "status": "active",
+      "color": "ירוק",
+      "junctionId": "66f1a0000000000000000001"
+    },
+    {
+      "_id": "66f1c0000000000000000002",
+      "name": "פס תאורה - אבן גבירול",
+      "status": "suspended",
+      "color": "כתום",
+      "junctionId": "66f1a0000000000000000002"
+    }
   ],
   "alerts": [
     {
       "_id": "alert_001",
-      "cameraId": "cam_101",
-      "crosswalkId": "cw_001",
+      "cameraId": "66f1b0000000000000000001",
+      "crosswalkId": "66f1a0000000000000000001",
       "location": "הרצל 45, חולון",
       "areaId": "area_holon_01",
       "areaName": "מרכז העיר",
@@ -56,8 +78,8 @@
     },
     {
       "_id": "alert_002",
-      "cameraId": "cam_201",
-      "crosswalkId": "cw_002",
+      "cameraId": "66f1b0000000000000000003",
+      "crosswalkId": "66f1a0000000000000000002",
       "location": "אבן גבירול 10, תל אביב",
       "areaId": "area_tlv_03",
       "areaName": "צפון תל אביב",

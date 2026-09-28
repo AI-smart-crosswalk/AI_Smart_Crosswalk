@@ -1,34 +1,31 @@
-// PROVENANCE: [RACHE] your route.
-/* ============================================================
- * SANDBOX FILE - SETTLED. Copied UNCHANGED from your real repo (branch sprint4-rache). Your thin-service style. (Add authMiddleware to the GET here if you decide reads need login.)
- * ============================================================ */
-
 /**
  * routes/crosswalkRoutes.js
  * -------------------------
  * HTTP endpoints for crosswalks (mounted at /api/crosswalks).
- *   POST   /     -> create a crosswalk
- *   GET    /     -> list all crosswalks from the database
- *   PUT    /:id  -> update a crosswalk (equipment / status)
+ *   POST /     -> create        (Admin)                -> socket "infra_added"
+ *   GET  /     -> list all      (all roles)
+ *   PUT  /:id  -> update by _id (Admin, Technician)    -> socket "infra_updated"
  */
 import express from 'express';
 import { createCrosswalk, fetchAllCrosswalks, updateCrosswalk } from '../services/crosswalkService.js';
 import authenticate from '../middleware/authenticationMiddleware.js';
 import authorize from '../middleware/authorizationMiddleware.js';
+import { emitInfra } from '../config/socket.js';
 
 const router = express.Router();
 
-// POST /api/crosswalks - create a new crosswalk.
-router.post('/', authenticate, authorize('Admin', 'Manager'), async (req, res) => {
+// POST /api/crosswalks - create (Admin only), then notify connected Admins.
+router.post('/', authenticate, authorize('Admin'), async (req, res) => {
     try {
-        const savedCrosswalk = await createCrosswalk(req.body);
-        res.status(201).json(savedCrosswalk);
+        const saved = await createCrosswalk(req.body);
+        emitInfra('infra_added', 'crosswalk', saved);
+        res.status(201).json(saved);
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
 });
 
-// GET /api/crosswalks - return all crosswalks from the real database.
+// GET /api/crosswalks - return all crosswalks in the DB (plain array, no filters).
 router.get('/', authenticate, authorize('Admin', 'Manager', 'Dispatcher', 'Technician'), async (req, res) => {
     try {
         const crosswalks = await fetchAllCrosswalks();
@@ -38,13 +35,14 @@ router.get('/', authenticate, authorize('Admin', 'Manager', 'Dispatcher', 'Techn
     }
 });
 
-// PUT /api/crosswalks/:id - update a crosswalk (e.g. { "isActive": false }).
-router.put('/:id', authenticate, authorize('Admin', 'Manager'), async (req, res) => {
+// PUT /api/crosswalks/:id - update by _id (Admin, Technician), then notify connected Admins.
+router.put('/:id', authenticate, authorize('Admin', 'Technician'), async (req, res) => {
     try {
         const updated = await updateCrosswalk(req.params.id, req.body);
         if (!updated) {
             return res.status(404).json({ message: 'Crosswalk not found' });
         }
+        emitInfra('infra_updated', 'crosswalk', updated);
         res.json(updated);
     } catch (error) {
         res.status(400).json({ message: error.message });
