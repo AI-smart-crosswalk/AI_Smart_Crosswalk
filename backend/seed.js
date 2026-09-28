@@ -111,32 +111,37 @@ const clearOldSchemaData = async () => {
     }
 };
 
-// There is no public registration, so the first Admin must be seeded.
-// Credentials come from .env: ADMIN_USERNAME, ADMIN_PASSWORD (>= 6 chars), optional ADMIN_NAME.
-const seedFirstAdmin = async () => {
-    if (await User.exists({ role: 'Admin' })) {
-        console.log('- admin: an Admin already exists, skipping');
-        return;
+// Default demo users, one per role, so the frontend can log in to every dashboard
+// right away. Created only if the username does not exist yet (never overwrites
+// a user an Admin already changed). DEMO ONLY - change these passwords before any
+// real deployment.
+const DEFAULT_USERS = [
+    { username: 'admin', name: 'אדמין', role: 'Admin' },
+    { username: 'manager', name: 'מנהל אזור', role: 'Manager' },
+    { username: 'dispatcher', name: 'מוקדן', role: 'Dispatcher' },
+    { username: 'tech', name: 'טכנאי', role: 'Technician' },
+];
+const DEFAULT_PASSWORD = '123456';
+
+const seedDefaultUsers = async () => {
+    for (const u of DEFAULT_USERS) {
+        if (await User.exists({ username: u.username })) {
+            console.log(`- users: "${u.username}" already exists, skipping`);
+            continue;
+        }
+        await User.create({
+            id: crypto.randomUUID(),
+            ...u,
+            passwordHash: await bcrypt.hash(DEFAULT_PASSWORD, 10),
+        });
+        console.log(`- users: created "${u.username}" (${u.role})`);
     }
-    const { ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_NAME } = process.env;
-    if (!ADMIN_USERNAME || !ADMIN_PASSWORD || ADMIN_PASSWORD.length < 6) {
-        console.log('- admin: NOT created - set ADMIN_USERNAME and ADMIN_PASSWORD (>= 6 chars) in .env and re-run');
-        return;
-    }
-    await User.create({
-        id: crypto.randomUUID(),
-        name: ADMIN_NAME || 'Admin',
-        username: ADMIN_USERNAME,
-        passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 10),
-        role: 'Admin',
-    });
-    console.log(`- admin: created "${ADMIN_USERNAME}"`);
 };
 
 const run = async () => {
     await connectDB();
 
-    await seedFirstAdmin();
+    await seedDefaultUsers();
     await clearOldSchemaData();   // one-time: removes old-format demo data (users are never touched)
     await seedMissing(Crosswalk, data.crosswalks, 'crosswalks');
     await seedMissing(Camera, data.cameras, 'cameras');
