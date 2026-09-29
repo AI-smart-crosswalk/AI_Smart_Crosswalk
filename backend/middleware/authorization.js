@@ -1,14 +1,15 @@
 /*
 ========================================
-Middleware responsible for user authorization
-based on roles.
+This middleware checks whether
+the authenticated user has the
+required role to access a route.
 
-The middleware checks whether the authenticated
-user has permission to access a specific route.
+It compares the user's role with
+the allowed roles defined for
+the current endpoint.
 
-If the user's role is allowed, the request
-proceeds to the next step. Otherwise, access
-is denied.
+Used after:
+- authenticationMiddleware
 ========================================
 */
 
@@ -16,9 +17,10 @@ const authorize = (...allowedRoles) => {
 
     return (req, res, next) => {
 
-        // Check if the user's role is allowed.
+        // Check whether the user's role is allowed.
         if (!allowedRoles.includes(req.user.role)) {
 
+            // Return an authorization error.
             return res.status(403).json({
                 message: "Access denied"
             });
