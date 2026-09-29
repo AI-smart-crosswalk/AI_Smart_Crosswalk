@@ -28,17 +28,33 @@ function DispatcherDashboard() {
   const [alerts, setAlerts] = useState([]);
   const [crosswalksData, setCrosswalksData] = useState([]);
 
+  // פונקציית עזר להפקת כותרות מאובטחות עם JWT
+  const getHeaders = () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/');
+      return null;
+    }
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+  };
+
   useEffect(() => {
     const fetchInitialData = async () => {
       setIsLoading(true);
       setError(null);
       
       try {
+        const headers = getHeaders();
+        if (!headers) return;
+
         const apiUrl = import.meta.env.VITE_API_URL;
         
         const [crosswalksRes, alertsRes] = await Promise.all([
-          fetch(`${apiUrl}/crosswalks`),
-          fetch(`${apiUrl}/alerts`)
+          fetch(`${apiUrl}/crosswalks`, { headers }),
+          fetch(`${apiUrl}/alerts`, { headers })
         ]);
 
         if (!crosswalksRes.ok || !alertsRes.ok) {
@@ -78,7 +94,7 @@ function DispatcherDashboard() {
     });
 
     return () => socket.disconnect();
-  }, []);
+  }, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -87,14 +103,15 @@ function DispatcherDashboard() {
 
   const handleToggleResolved = async (alertId, currentResolvedStatus) => {
     try {
+      const headers = getHeaders();
+      if (!headers) return;
+
       const apiUrl = import.meta.env.VITE_API_URL;
       const newStatus = !currentResolvedStatus;
 
       const response = await fetch(`${apiUrl}/alerts/${alertId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: JSON.stringify({ isResolved: newStatus }),
       });
 
@@ -279,14 +296,14 @@ function DispatcherDashboard() {
                       {filteredAlerts.filter(a => !a.isResolved).length} ממתינות
                     </span>
                 </div>
-            </div>
-            
-            {isLoading ? (
+             </div>
+             
+             {isLoading ? (
                 <div className="flex flex-col items-center justify-center flex-1 space-y-4 bg-slate-50/50 min-h-[200px]">
                     <div className="w-12 h-12 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin"></div>
                     <div className="text-slate-600 font-medium animate-pulse">מתחבר לשרת הנתונים...</div>
                 </div>
-            ) : error ? (
+             ) : error ? (
                 <div className="flex flex-col items-center justify-center flex-1 space-y-3 bg-red-50/50 min-h-[200px]">
                     <span className="text-4xl">⚠️</span>
                     <span className="font-bold text-red-600 text-center">{error}</span>
@@ -294,7 +311,7 @@ function DispatcherDashboard() {
                         נסה להתחבר שוב
                     </button>
                 </div>
-            ) : (
+             ) : (
                 <div className="overflow-x-auto overflow-y-auto flex-1">
                     <table className="w-full text-right border-collapse min-w-[800px]">
                         <thead className="bg-white sticky top-0 border-b-2 border-slate-200 shadow-sm z-10">
@@ -357,8 +374,8 @@ function DispatcherDashboard() {
                                     <td className="p-4 whitespace-nowrap">
                                         {alert.imageUrl ? (
                                             <button 
-                                              className="text-blue-600 hover:text-blue-800 text-sm font-bold underline transition"
-                                              onClick={() => setSelectedImage(alert.imageUrl)}
+                                                className="text-blue-600 hover:text-blue-800 text-sm font-bold underline transition"
+                                                onClick={() => setSelectedImage(alert.imageUrl)}
                                             >
                                                 צפה 🖼️
                                             </button>
@@ -376,7 +393,7 @@ function DispatcherDashboard() {
                         </tbody>
                     </table>
                 </div>
-            )}
+             )}
           </div>
         </div>
       </main>

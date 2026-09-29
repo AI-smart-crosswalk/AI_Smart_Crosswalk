@@ -28,7 +28,6 @@ function Login() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
       
-      // שליחת בקשת התחברות אמיתית לשרת
       const response = await fetch(`${apiUrl}/users/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -41,16 +40,14 @@ function Login() {
 
       const data = await response.json();
       
-      // שמירת הטוקן האמיתי ב-localStorage
       localStorage.setItem('token', data.token);
 
-      // ניתוב אוטומטי לפי התפקיד (Role) שהשרת מחזיר
-      const role = data.user?.role?.toLowerCase();
+      const role = data.role?.toLowerCase();
       
       if (role === 'admin') navigate('/admin');
       else if (role === 'manager') navigate('/manager');
       else if (role === 'technician') navigate('/technician');
-      else navigate('/dispatcher'); // ברירת מחדל למוקדן
+      else navigate('/dispatcher'); 
 
     } catch (error) {
       alert(error.message || "שגיאה בהתחברות מול השרת. אנא בדוק את החיבור.");

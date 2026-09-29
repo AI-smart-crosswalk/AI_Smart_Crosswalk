@@ -2,7 +2,30 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:5000'); 
+const socket = io('http://localhost:3000');
+
+// פונקציות עזר לבדיקת תקינות (Validation)
+const isValidEmail = (email) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
+const isValidPhone = (phone) => {
+  return /^0[2-9]\d{7,8}$/.test(phone.replace(/[-\s]/g, ''));
+};
+
+const isValidIsraeliID = (id) => {
+  const cleanId = String(id).trim();
+  if (cleanId.length > 9 || isNaN(cleanId)) return false;
+  const paddedId = cleanId.padStart(9, '0');
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    let digit = parseInt(paddedId.charAt(i), 10);
+    let step = digit * ((i % 2) + 1);
+    if (step > 9) step -= 9;
+    sum += step;
+  }
+  return sum % 10 === 0;
+};
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -114,7 +137,22 @@ function AdminDashboard() {
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim().includes(' ')) return alert('נא להזין שם מלא הכולל לפחות שתי שמות (שם פרטי ומשפחה)');
+    
+    if (!formData.name.trim().includes(' ')) {
+      return alert('נא להזין שם מלא הכולל לפחות שתי שמות (שם פרטי ומשפחה)');
+    }
+
+    if (formData.email && !isValidEmail(formData.email)) {
+      return alert('כתובת האימייל שהוזנה אינה תקינה');
+    }
+
+    if (formData.phone && !isValidPhone(formData.phone)) {
+      return alert('מספר הטלפון שהוזן אינו תקין (לדוגמה: 0501234567)');
+    }
+
+    if (formData.idNumber && !isValidIsraeliID(formData.idNumber)) {
+      return alert('מספר תעודת הזהות אינו תקין');
+    }
 
     try {
       const response = await fetch('/api/users/register', {
@@ -195,11 +233,17 @@ function AdminDashboard() {
 
   const handleUserClick = (user) => { setSelectedUser(user); setIsEditMode(false); };
   const handleCloseProfile = () => { setSelectedUser(null); setIsEditMode(false); setFormData(initialFormState); };
+  
   const handleEditClick = () => {
       setFormData({
-          name: selectedUser.name || '', username: selectedUser.username || '', password: '',
-          email: selectedUser.email || '', phone: selectedUser.phone || '', idNumber: selectedUser.idNumber || '',
-          address: selectedUser.address || '', role: selectedUser.role || 'Dispatcher'
+          name: selectedUser.name || '', 
+          username: selectedUser.username || '', 
+          password: '',
+          email: selectedUser.email || '', 
+          phone: selectedUser.phone || '', 
+          idNumber: selectedUser.idNumber || '',
+          address: selectedUser.address || '', 
+          role: selectedUser.role || 'Dispatcher'
       });
       setIsEditMode(true);
   };
@@ -223,6 +267,26 @@ function AdminDashboard() {
     setInfraFormData({ ...item });
     setIsInfraEditMode(true);
     setIsInfraModalOpen(true);
+  };
+
+  const handleDeleteInfra = async (id) => {
+    if (!window.confirm('האם אתה בטוח שברצונך למחוק פריט תשתית זה?')) return;
+    try {
+      let endpoint = '';
+      if (infraSubTab === 'junctions') endpoint = '/api/crosswalks';
+      if (infraSubTab === 'cameras') endpoint = '/api/cameras';
+      if (infraSubTab === 'leds') endpoint = '/api/leds';
+
+      const response = await fetch(`${endpoint}/${id}`, { method: 'DELETE', headers: getHeaders() });
+      if (!response.ok) throw new Error('שגיאה במחיקת הפריט');
+
+      if (infraSubTab === 'junctions') setJunctions(junctions.filter(j => j._id !== id));
+      if (infraSubTab === 'cameras') setCameras(cameras.filter(c => c._id !== id));
+      if (infraSubTab === 'leds') setLeds(leds.filter(l => l._id !== id));
+      alert('הפריט נמחק בהצלחה');
+    } catch (error) {
+      alert(error.message);
+    }
   };
 
   const handleSaveInfraUpdate = async (e) => {
@@ -409,7 +473,11 @@ function AdminDashboard() {
     if (infraSubTab === 'leds') currentData = leds;
 
     const filteredData = currentData.filter(item => 
-      (item.name && item.name.includes(infraSearchTerm)) || (item._id && item._id.includes(infraSearchTerm))
+      (item.name && item.name.toLowerCase().includes(infraSearchTerm.toLowerCase())) || 
+      (item.city && item.city.toLowerCase().includes(infraSearchTerm.toLowerCase())) ||
+      (item.street && item.street.toLowerCase().includes(infraSearchTerm.toLowerCase())) ||
+      (item.type && item.type.toLowerCase().includes(infraSearchTerm.toLowerCase())) ||
+      (item._id && item._id.includes(infraSearchTerm))
     );
 
     return (
@@ -433,7 +501,7 @@ function AdminDashboard() {
         <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden mt-2 flex-1">
            <div className="bg-slate-50 p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <span className="font-bold text-slate-700">רשימת ציוד מעודכנת</span>
-              <input type="text" placeholder="חיפוש לפי שם או מזהה..." value={infraSearchTerm} onChange={(e) => setInfraSearchTerm(e.target.value)} className="p-2 px-3 border border-slate-300 rounded text-sm w-full sm:w-64 outline-none focus:border-blue-500" />
+              <input type="text" placeholder="חיפוש לפי שם, עיר, רחוב או סוג..." value={infraSearchTerm} onChange={(e) => setInfraSearchTerm(e.target.value)} className="p-2 px-3 border border-slate-300 rounded text-sm w-full sm:w-72 outline-none focus:border-blue-500" />
            </div>
            
            <div className="overflow-x-auto">
@@ -464,6 +532,9 @@ function AdminDashboard() {
                         <td className="p-4 text-center">
                           <button onClick={() => handleEditInfraClick(item)} className="text-blue-600 hover:text-blue-800 font-bold text-sm mx-2 transition">
                             ערוך ✏️
+                          </button>
+                          <button onClick={() => handleDeleteInfra(item._id)} className="text-red-600 hover:text-red-800 font-bold text-sm mx-2 transition">
+                            מחק 🗑️
                           </button>
                         </td>
                       </tr>
@@ -514,7 +585,7 @@ function AdminDashboard() {
         )}
       </main>
 
-      {/* Modal יצירת/עריכת משתמש */}
+      {/* Modal יצירת משתמש */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 max-h-[90vh] overflow-y-auto">
@@ -530,6 +601,7 @@ function AdminDashboard() {
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">שם משתמש *</label>
                 <input type="text" value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} className="w-full p-2 border border-slate-300 rounded text-sm outline-none focus:border-purple-500 font-mono" required />
+                <span className="text-[11px] text-slate-400 mt-1 block">שים לב: שם המשתמש משמש לכניסה ולא ניתן לעריכה לאחר היצירה.</span>
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">סיסמה *</label>
@@ -560,7 +632,7 @@ function AdminDashboard() {
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 font-bold text-sm hover:bg-slate-50">ביטול</button>
                 <button type="submit" className="px-5 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow">צור משתמש</button>
               </div>
-            </form>
+             </form>
           </div>
         </div>
       )}
@@ -666,7 +738,7 @@ function AdminDashboard() {
         </div>
       )}
 
-      {/* Modal יצירת/עריכת תשתיות (צמתים, מצלמות, לד) */}
+      {/* Modal יצירת/עריכת תשתיות */}
       {isInfraModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 max-h-[90vh] overflow-y-auto">
@@ -720,7 +792,6 @@ function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* 👇 שדה סביבת בית ספר (Checkbox) */}
                   <div className="flex items-center gap-2 mb-3 bg-amber-50 p-3 rounded-lg border border-amber-200">
                     <input 
                       type="checkbox" 
