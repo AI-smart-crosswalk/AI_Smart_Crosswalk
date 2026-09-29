@@ -10,11 +10,20 @@ and calls the appropriate service.
 */
 
 import express from 'express';
-import { createAlert, fetchAllAlerts, updateAlert } from '../services/alertService.js';
+import {
+    createAlert,
+    fetchAllAlerts,
+    updateAlert
+} from '../services/alertService.js';
+
 import authenticate from '../middleware/authenticationMiddleware.js';
 import authorize from '../middleware/authorizationMiddleware.js';
 import apiKey from '../middleware/apiKeyMiddleware.js';
-import { emitAlertResolved } from '../config/socket.js';
+
+import {
+    emitAlertResolved,
+    emitAlertReopened
+} from '../config/socket.js';
 
 const router = express.Router();
 
@@ -41,7 +50,9 @@ router.post('/', apiKey, async (req, res) => {
     } catch (error) {
 
         // Return an error if the request failed.
-        res.status(400).json({ message: error.message });
+        res.status(400).json({
+            message: error.message
+        });
 
     }
 
@@ -55,60 +66,91 @@ Accessible only to authenticated
 users with the required role.
 ========================================
 */
-router.get('/', authenticate, authorize('Admin', 'Manager', 'Dispatcher', 'Technician'), async (req, res) => {
+router.get(
+    '/',
+    authenticate,
+    authorize('Admin', 'Manager', 'Dispatcher', 'Technician'),
+    async (req, res) => {
 
-    try {
+        try {
 
-        // Fetch all alerts from the database.
-        const alerts = await fetchAllAlerts();
+            // Fetch all alerts from the database.
+            const alerts = await fetchAllAlerts();
 
-        // Return the alerts list.
-        res.json(alerts);
+            // Return the alerts list.
+            res.json(alerts);
 
-    } catch (error) {
+        } catch (error) {
 
-        // Return an internal server error.
-        res.status(500).json({ message: error.message });
+            // Return an internal server error.
+            res.status(500).json({
+                message: error.message
+            });
+
+        }
 
     }
-
-});
+);
 
 /*
 ========================================
 Update an existing alert.
 
-Used to resolve an alert or
-update its information.
+Used to resolve an alert,
+reopen an alert,
+or update its information.
 ========================================
 */
-router.put('/:id', authenticate, authorize('Admin', 'Dispatcher', 'Technician'), async (req, res) => {
+router.put(
+    '/:id',
+    authenticate,
+    authorize('Admin', 'Dispatcher', 'Technician'),
+    async (req, res) => {
 
-    try {
+        try {
 
-        // Update the selected alert.
-        const { alert: updated, justResolved } = await updateAlert(req.params.id, req.body);
+            // Update the selected alert.
+            const {
+                alert: updated,
+                justResolved,
+                justReopened
+            } = await updateAlert(
+                req.params.id,
+                req.body
+            );
 
-        // Return an error if the alert does not exist.
-        if (!updated) {
-            return res.status(404).json({ message: 'Alert not found' });
+            // Return an error if the alert does not exist.
+            if (!updated) {
+                return res.status(404).json({
+                    message: 'Alert not found'
+                });
+            }
+
+            // Notify connected clients when
+            // an alert changes from unresolved to resolved.
+            if (justResolved) {
+                emitAlertResolved(updated);
+            }
+
+            // Notify connected clients when
+            // an alert changes from resolved to unresolved.
+            if (justReopened) {
+                emitAlertReopened(updated);
+            }
+
+            // Return the updated alert.
+            res.json(updated);
+
+        } catch (error) {
+
+            // Return an error if the update failed.
+            res.status(400).json({
+                message: error.message
+            });
+
         }
-
-        // Notify connected clients when an alert is resolved.
-        if (justResolved) {
-            emitAlertResolved(updated);
-        }
-
-        // Return the updated alert.
-        res.json(updated);
-
-    } catch (error) {
-
-        // Return an error if the update failed.
-        res.status(400).json({ message: error.message });
 
     }
-
-});
+);
 
 export default router;
