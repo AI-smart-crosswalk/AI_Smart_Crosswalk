@@ -7,6 +7,7 @@ Responsibilities:
 - Manage frontend socket connections.
 - Send infrastructure updates.
 - Send alert resolution updates.
+- Send alert reopen updates.
 - Watch MongoDB for alert changes.
 - Watch MongoDB for user changes.
 - Send live updates to the frontend.
@@ -144,6 +145,40 @@ export const emitAlertResolved = (alert) => {
 
         console.error(
             `Failed to emit alert_resolved: ${err.message}`
+        );
+
+    }
+
+};
+
+
+/*
+========================================
+Emit Alert Reopened
+========================================
+*/
+
+export const emitAlertReopened = (alert) => {
+
+    try {
+
+        // Notify connected clients that an alert was reopened.
+        getIO().emit(
+            'alert_reopened',
+            {
+                _id: alert._id,
+                crosswalkId: alert.crosswalkId
+            }
+        );
+
+        console.log(
+            `Live: emitted alert_reopened ${alert._id}`
+        );
+
+    } catch (err) {
+
+        console.error(
+            `Failed to emit alert_reopened: ${err.message}`
         );
 
     }
