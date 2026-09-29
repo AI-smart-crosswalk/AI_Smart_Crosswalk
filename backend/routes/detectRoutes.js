@@ -1,16 +1,30 @@
-/* ============================================================
- * SANDBOX - backend route that forwards an image to the AI service.
- * PROVENANCE: structure = YOSSEF's routes (express.Router + service handler).
- *             [CHANGED] protected by x-api-key (sensor call, no user JWT).
- *   POST /api/detect  { imagePath }  -> detections
- * ============================================================ */
-import express from "express";                              
+/*
+========================================
+This file defines the HTTP endpoint
+for object detection.
+
+It receives an image path,
+forwards the request to the AI service,
+and returns the detection results.
+========================================
+*/
+
+import express from "express";
 import detectService from "../services/detectService.js";
-import apiKey from "../middleware/apiKeyMiddleware.js";   // sensor/AI call, no user JWT   
+import apiKey from "../middleware/apiKeyMiddleware.js";
 
-const router = express.Router();                            
+const router = express.Router();
 
+/*
+========================================
+Run object detection.
 
-router.post("/", apiKey, detectService.detectObjects);             
+Called by the AI service using
+an API Key instead of a JWT.
 
-export default router;                                      
+Returns the detection results.
+========================================
+*/
+router.post("/", apiKey, detectService.detectObjects);
+
+export default router;

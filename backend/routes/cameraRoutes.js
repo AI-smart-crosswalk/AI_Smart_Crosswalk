@@ -1,11 +1,14 @@
-/**
- * routes/cameraRoutes.js
- * ----------------------
- * HTTP endpoints for cameras (mounted at /api/cameras).
- *   POST /                   -> create      (Admin)                -> socket "infra_added"
- *   GET  /?junctionId=<_id>  -> list all, optionally by crosswalk (all roles)
- *   PUT  /:id                -> update by _id (Admin, Technician)  -> socket "infra_updated"
- */
+/*
+========================================
+This file defines all HTTP endpoints
+for cameras.
+
+These endpoints allow creating,
+retrieving and updating cameras
+in the system.
+========================================
+*/
+
 import express from 'express';
 import { createCamera, fetchAllCameras, fetchCamerasByJunction, updateCamera } from '../services/cameraService.js';
 import authenticate from '../middleware/authenticationMiddleware.js';
@@ -14,40 +17,108 @@ import { emitInfra } from '../config/socket.js';
 
 const router = express.Router();
 
-// POST /api/cameras - create (Admin only), then notify connected Admins.
+/*
+========================================
+Create a new camera.
+
+Accessible only to Admin users.
+
+Notifies connected clients after
+the camera is created.
+========================================
+*/
 router.post('/', authenticate, authorize('Admin'), async (req, res) => {
+
     try {
+
+        // Create and save the new camera.
         const saved = await createCamera(req.body);
+
+        // Notify connected clients about the new camera.
         emitInfra('infra_added', 'camera', saved);
+
+        // Return the created camera.
         res.status(201).json(saved);
+
     } catch (error) {
+
+        // Return an error if the request failed.
         res.status(400).json({ message: error.message });
+
     }
+
 });
 
-// GET /api/cameras - return everything in the DB (optionally filtered by ?junctionId).
+/*
+========================================
+Return cameras.
+
+Optionally filters the results
+by crosswalk using junctionId.
+
+Accessible to all authenticated roles.
+========================================
+*/
 router.get('/', authenticate, authorize('Admin', 'Manager', 'Dispatcher', 'Technician'), async (req, res) => {
+
     try {
+
+        // Get the optional junction filter.
         const { junctionId } = req.query;
-        const items = junctionId ? await fetchCamerasByJunction(junctionId) : await fetchAllCameras();
+
+        // Fetch the requested cameras.
+        const items = junctionId
+            ? await fetchCamerasByJunction(junctionId)
+            : await fetchAllCameras();
+
+        // Return the cameras list.
         res.json(items);
+
     } catch (error) {
+
+        // Return an internal server error.
         res.status(500).json({ message: error.message });
+
     }
+
 });
 
-// PUT /api/cameras/:id - update by _id (Admin, Technician), then notify connected Admins.
+/*
+========================================
+Update an existing camera.
+
+Accessible to Admin and
+Technician users.
+
+Notifies connected clients
+after the update.
+========================================
+*/
 router.put('/:id', authenticate, authorize('Admin', 'Technician'), async (req, res) => {
+
     try {
+
+        // Update the selected camera.
         const updated = await updateCamera(req.params.id, req.body);
+
+        // Return an error if the camera does not exist.
         if (!updated) {
             return res.status(404).json({ message: 'Camera not found' });
         }
+
+        // Notify connected clients about the update.
         emitInfra('infra_updated', 'camera', updated);
+
+        // Return the updated camera.
         res.json(updated);
+
     } catch (error) {
+
+        // Return an error if the update failed.
         res.status(400).json({ message: error.message });
+
     }
+
 });
 
 export default router;

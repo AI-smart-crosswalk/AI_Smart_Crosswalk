@@ -1,11 +1,14 @@
-/**
- * routes/crosswalkRoutes.js
- * -------------------------
- * HTTP endpoints for crosswalks (mounted at /api/crosswalks).
- *   POST /     -> create        (Admin)                -> socket "infra_added"
- *   GET  /     -> list all      (all roles)
- *   PUT  /:id  -> update by _id (Admin, Technician)    -> socket "infra_updated"
- */
+/*
+========================================
+This file defines all HTTP endpoints
+for crosswalks.
+
+These endpoints allow creating,
+retrieving and updating
+crosswalk information.
+========================================
+*/
+
 import express from 'express';
 import { createCrosswalk, fetchAllCrosswalks, updateCrosswalk } from '../services/crosswalkService.js';
 import authenticate from '../middleware/authenticationMiddleware.js';
@@ -14,39 +17,101 @@ import { emitInfra } from '../config/socket.js';
 
 const router = express.Router();
 
-// POST /api/crosswalks - create (Admin only), then notify connected Admins.
+/*
+========================================
+Create a new crosswalk.
+
+Accessible only to Admin users.
+
+Notifies connected clients after
+the crosswalk is created.
+========================================
+*/
 router.post('/', authenticate, authorize('Admin'), async (req, res) => {
+
     try {
+
+        // Create and save the new crosswalk.
         const saved = await createCrosswalk(req.body);
+
+        // Notify connected clients about the new crosswalk.
         emitInfra('infra_added', 'crosswalk', saved);
+
+        // Return the created crosswalk.
         res.status(201).json(saved);
+
     } catch (error) {
+
+        // Return an error if the request failed.
         res.status(400).json({ message: error.message });
+
     }
+
 });
 
-// GET /api/crosswalks - return all crosswalks in the DB (plain array, no filters).
+/*
+========================================
+Return all crosswalks.
+
+Accessible to all authenticated
+system users.
+========================================
+*/
 router.get('/', authenticate, authorize('Admin', 'Manager', 'Dispatcher', 'Technician'), async (req, res) => {
+
     try {
+
+        // Fetch all crosswalks from the database.
         const crosswalks = await fetchAllCrosswalks();
+
+        // Return the crosswalks list.
         res.json(crosswalks);
+
     } catch (error) {
+
+        // Return an internal server error.
         res.status(500).json({ message: error.message });
+
     }
+
 });
 
-// PUT /api/crosswalks/:id - update by _id (Admin, Technician), then notify connected Admins.
+/*
+========================================
+Update an existing crosswalk.
+
+Accessible to Admin and
+Technician users.
+
+Notifies connected clients
+after the update.
+========================================
+*/
 router.put('/:id', authenticate, authorize('Admin', 'Technician'), async (req, res) => {
+
     try {
+
+        // Update the selected crosswalk.
         const updated = await updateCrosswalk(req.params.id, req.body);
+
+        // Return an error if the crosswalk does not exist.
         if (!updated) {
             return res.status(404).json({ message: 'Crosswalk not found' });
         }
+
+        // Notify connected clients about the update.
         emitInfra('infra_updated', 'crosswalk', updated);
+
+        // Return the updated crosswalk.
         res.json(updated);
+
     } catch (error) {
+
+        // Return an error if the update failed.
         res.status(400).json({ message: error.message });
+
     }
+
 });
 
 export default router;

@@ -1,16 +1,14 @@
-// PROVENANCE: [RACHE] your route (thin-service style).
-/* ============================================================
- * SANDBOX FILE - SETTLED. Copied UNCHANGED from your real repo (branch sprint4-rache). Your thin-service style. (Add authMiddleware to the GET here if you decide reads need login.)
- * ============================================================ */
+/*
+========================================
+This file defines all HTTP endpoints
+for alerts.
 
-/**
- * routes/alertRoutes.js
- * ---------------------
- * HTTP endpoints for alerts (mounted at /api/alerts).
- *   POST   /     -> create a new alert (sensor / AI service, x-api-key)
- *   GET    /     -> list all alerts from the database (newest first)
- *   PUT    /:id  -> update an alert (e.g. mark resolved)
- */
+Each route receives a request,
+applies the required middleware,
+and calls the appropriate service.
+========================================
+*/
+
 import express from 'express';
 import { createAlert, fetchAllAlerts, updateAlert } from '../services/alertService.js';
 import authenticate from '../middleware/authenticationMiddleware.js';
@@ -20,42 +18,97 @@ import { emitAlertResolved } from '../config/socket.js';
 
 const router = express.Router();
 
-// POST /api/alerts - create a new alert via the service (uploads image + saves).
-// Called by the sensor / AI service, not a logged-in user: protected by x-api-key, not a JWT.
+/*
+========================================
+Create a new alert.
+
+Called by the AI service after
+a dangerous event is detected.
+
+Protected by an API Key.
+========================================
+*/
 router.post('/', apiKey, async (req, res) => {
+
     try {
+
+        // Create and save the new alert.
         const savedAlert = await createAlert(req.body);
+
+        // Return the created alert.
         res.status(201).json(savedAlert);
+
     } catch (error) {
+
+        // Return an error if the request failed.
         res.status(400).json({ message: error.message });
+
     }
+
 });
 
-// GET /api/alerts - return all alerts from the real database.
+/*
+========================================
+Return all alerts.
+
+Accessible only to authenticated
+users with the required role.
+========================================
+*/
 router.get('/', authenticate, authorize('Admin', 'Manager', 'Dispatcher', 'Technician'), async (req, res) => {
+
     try {
+
+        // Fetch all alerts from the database.
         const alerts = await fetchAllAlerts();
+
+        // Return the alerts list.
         res.json(alerts);
+
     } catch (error) {
+
+        // Return an internal server error.
         res.status(500).json({ message: error.message });
+
     }
+
 });
 
-// PUT /api/alerts/:id - update an alert (e.g. { "isResolved": true }).
+/*
+========================================
+Update an existing alert.
+
+Used to resolve an alert or
+update its information.
+========================================
+*/
 router.put('/:id', authenticate, authorize('Admin', 'Dispatcher', 'Technician'), async (req, res) => {
+
     try {
+
+        // Update the selected alert.
         const { alert: updated, justResolved } = await updateAlert(req.params.id, req.body);
+
+        // Return an error if the alert does not exist.
         if (!updated) {
             return res.status(404).json({ message: 'Alert not found' });
         }
 
-        // The change stream in config/socket.js still pushes 'alertUpdated'.
-        // On the "handled" click (false -> true) also tell the Manager dashboard to refetch analytics.
-        if (justResolved) emitAlertResolved(updated);
+        // Notify connected clients when an alert is resolved.
+        if (justResolved) {
+            emitAlertResolved(updated);
+        }
+
+        // Return the updated alert.
         res.json(updated);
+
     } catch (error) {
+
+        // Return an error if the update failed.
         res.status(400).json({ message: error.message });
+
     }
+
 });
 
 export default router;
