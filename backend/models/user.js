@@ -1,28 +1,55 @@
-// PROVENANCE: [RACHE] your model (fields must match Yossef's auth).
-/* ============================================================
- * SANDBOX FILE - SETTLED. From your real repo (branch sprint4-rache), then changed: (Users are created only by an Admin; no email, login is by username.)
- * ============================================================ */
+/*
+========================================
+User Model
 
-/**
- * models/user.js
- * --------------
- * Mongoose schema for a system user (operator / admin) who logs into the
- * dashboard. Passwords are stored hashed, never in plain text.
- */
+This model represents a system user who logs
+into the SmartWalk dashboard (for example an
+Admin, Manager, Dispatcher, or Technician).
+It stores the user's code, full name, username,
+hashed password, role, account status,
+last login time, and creation time.
+
+Notes:
+- Users are created only by an Admin
+  (there is no public registration).
+- There is no email. Login is by username.
+- Passwords are stored hashed, never in plain text.
+========================================
+*/
 import mongoose from "mongoose";
 
+/*
+========================================
+User Schema
+========================================
+*/
 const userSchema = new mongoose.Schema({
-    id: { type: String, required: true },                       // user code
-    name: { type: String, required: true, trim: true },         // full name (set by the Admin)
-    username: { type: String, required: true, unique: true },   // login name
-    passwordHash: { type: String, required: true },             // hashed password (never plain)
-    // permission level - frontend routes to a dashboard based on this
+    // User code (a UUID created by the server).
+    id: { type: String, required: true },
+
+    // Full name, set by the Admin. Extra spaces are trimmed.
+    name: { type: String, required: true, trim: true },
+
+    // Login name. Must be unique (no two users with the same username).
+    username: { type: String, required: true, unique: true },
+
+    // Hashed password (bcrypt). The plain password is never saved.
+    passwordHash: { type: String, required: true },
+
+    // Permission level. The frontend opens a dashboard based on this role.
     role: { type: String, enum: ['Admin', 'Manager', 'Dispatcher', 'Technician']},
-    // account state - lets an Admin suspend a user without deleting them
+
+    // Account state. Lets an Admin suspend a user without deleting them.
+    // Suspended users cannot log in.
     status: { type: String, enum: ['active', 'suspended'], default: 'active' },
-    lastLogin: { type: Date, default: null },                   // null = never logged in yet
-    createdAt: { type: Date, default: Date.now }                // account creation time
+
+    // Last login time. null = the user has never logged in yet.
+    lastLogin: { type: Date, default: null },
+
+    // Account creation time.
+    createdAt: { type: Date, default: Date.now }
 });
 
+// Create the User model from the schema.
 const User = mongoose.model("User", userSchema);
 export default User;
