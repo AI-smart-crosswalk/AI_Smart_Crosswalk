@@ -300,76 +300,27 @@ Clear Old Schema Data
 ========================================
 */
 
+// Each collection's own filter for documents that belong to the OLD schema.
+// deleteMany runs with THIS filter, never with {} - a blanket wipe would also
+// remove current, real data (including live alerts from the AI service).
+const OLD_SCHEMA_FILTERS = {
+    crosswalks: { _id: { $type: 'string' } },
+    cameras: { junctionId: { $exists: true } },
+    leds: { junctionId: { $exists: true } },
+    alerts: { crosswalkId: /^cw_/ },
+};
+
 const clearOldSchemaData = async () => {
 
     const db =
         mongoose.connection.db;
 
 
-    // Search for documents from the old schema.
-    const oldCrosswalk =
-        await db
-            .collection('crosswalks')
-            .findOne({
-                _id: {
-                    $type: 'string'
-                }
-            });
+    let totalCleared = 0;
 
-
-    const oldCamera =
-        await db
-            .collection('cameras')
-            .findOne({
-                junctionId: {
-                    $exists: true
-                }
-            });
-
-
-    const oldLED =
-        await db
-            .collection('leds')
-            .findOne({
-                junctionId: {
-                    $exists: true
-                }
-            });
-
-
-    const oldAlert =
-        await db
-            .collection('alerts')
-            .findOne({
-                crosswalkId: /^cw_/
-            });
-
-
-    const oldDataFound =
-        oldCrosswalk ||
-        oldCamera ||
-        oldLED ||
-        oldAlert;
-
-
-    if (!oldDataFound) {
-
-        console.log(
-            '- migration: no old-format data, nothing to clear'
-        );
-
-        return;
-    }
-
-
-    // Remove old demo infrastructure data.
+    // Remove only the documents that match that collection's old-schema filter.
     for (
-        const collectionName of [
-            'crosswalks',
-            'cameras',
-            'leds',
-            'alerts'
-        ]
+        const [collectionName, filter] of Object.entries(OLD_SCHEMA_FILTERS)
     ) {
 
         const result =
@@ -377,11 +328,25 @@ const clearOldSchemaData = async () => {
                 .collection(
                     collectionName
                 )
-                .deleteMany({});
+                .deleteMany(filter);
 
+
+        if (result.deletedCount > 0) {
+
+            console.log(
+                `- migration: cleared ${result.deletedCount} old-format docs from ${collectionName}`
+            );
+
+            totalCleared += result.deletedCount;
+        }
+
+    }
+
+
+    if (totalCleared === 0) {
 
         console.log(
-            `- migration: cleared ${result.deletedCount} old docs from ${collectionName}`
+            '- migration: no old-format data, nothing to clear'
         );
 
     }
@@ -400,8 +365,8 @@ const DEFAULT_USERS = [
         username:
             'admin',
 
-        email:
-            'admin@smartwalk.com',
+        name:
+            'Admin',
 
         role:
             'Admin',
@@ -414,8 +379,8 @@ const DEFAULT_USERS = [
         username:
             'maya',
 
-        email:
-            'maya.levi@test.com',
+        name:
+            'Maya Levi',
 
         role:
             'Manager',
@@ -428,11 +393,11 @@ const DEFAULT_USERS = [
         username:
             'noam',
 
-        email:
-            'noam.israeli@test.com',
+        name:
+            'Noam Israeli',
 
         role:
-            'User',
+            'Technician',
 
         password:
             'Noam123!'
@@ -456,15 +421,15 @@ const seedDefaultUsers = async () => {
         // Do not recreate an existing user.
         const existingUser =
             await User.findOne({
-                email:
-                    userData.email
+                username:
+                    userData.username
             });
 
 
         if (existingUser) {
 
             console.log(
-                `- users: "${userData.email}" already exists, skipping`
+                `- users: "${userData.username}" already exists, skipping`
             );
 
             continue;
@@ -488,8 +453,8 @@ const seedDefaultUsers = async () => {
             username:
                 userData.username,
 
-            email:
-                userData.email,
+            name:
+                userData.name,
 
             passwordHash:
                 passwordHash,
@@ -501,7 +466,7 @@ const seedDefaultUsers = async () => {
 
 
         console.log(
-            `- users: created "${userData.email}" (${userData.role})`
+            `- users: created "${userData.username}" (${userData.role})`
         );
 
     }

@@ -59,6 +59,7 @@ Thumbs.db
 
 # Local AI assistant settings
 .claude/
+../.claude/
 
 
 # Local sprint files
@@ -72,3 +73,6 @@ merge-sandbox/
 
 # Personal project notes
 SPRINT4_design_decisions.md
+
+#projects documentation
+docs/

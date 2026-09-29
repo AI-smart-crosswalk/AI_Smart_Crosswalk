@@ -7,7 +7,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
-    "seed": "node seed.js",
+    "seed": "node tests/seed.js",
     "test:e2e": "node --test --test-concurrency=1 tests/e2e.test.js"
   },
   "keywords": [],
