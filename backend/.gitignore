@@ -1,27 +1,43 @@
-# Environment variables and secrets
+# ========================================
+# SmartWalk Git Ignore
+#
+# This file prevents private, generated,
+# temporary, and local development files
+# from being committed to Git.
+# ========================================
+
+
+# Environment variables and secret keys
 .env
+
 
 # Node.js dependencies
 node_modules/
 
-# Frontend build output
+
+# Frontend build files
 dist/
 dist-ssr/
 build/
 
-# Python virtual environment
+
+# Python virtual environments
 venv/
 ai-service/venv/
+
 
 # Python cache files
 __pycache__/
 *.pyc
 
+
 # YOLO model weights
 *.pt
 
+
 # Local test videos
 *.mp4
+
 
 # Log and debug files
 *.log
@@ -30,23 +46,29 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+
 # Operating system files
 .DS_Store
 Thumbs.db
+
 
 # IDE and editor settings
 .vscode/
 .idea/
 
+
 # Local AI assistant settings
 .claude/
+
 
 # Local sprint files
 sprints/
 
-# Temporary files
+
+# Temporary development files
 err.txt
 merge-sandbox/
+
 
 # Personal project notes
 SPRINT4_design_decisions.md
