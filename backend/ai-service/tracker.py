@@ -202,6 +202,7 @@ class SimpleTracker:
         """
         frame_h, frame_w = frame.shape[:2]
         persons, phones, wheeled = split_detections(self.detect(frame))
+        print(f"[DEBUG] t={t:.2f}s persons={len(persons)} phones={len(phones)}")
         # Remove small and duplicate person boxes, then find phone holders.
         persons = [p for p in persons if p["height"] >= config.MIN_PERSON_HEIGHT_PX]
         persons = suppress_duplicates(persons)

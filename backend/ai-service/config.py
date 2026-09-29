@@ -94,7 +94,7 @@ PARALLEL_RATIO = 0.3                 # Below this ratio the person walks along t
 PHONE_MAX_DIST = 0.35                # Max phone distance from the chest (h) = holding a phone.
 PHONE_MIN_FRACTION = 0.5             # Phone must be seen in at least 50% of the frames.
 PHONE_MIN_FRAMES = 2
-CHILD_HEIGHT_RATIO = 0.8             # Shorter than 0.8 x adult height = child.
+CHILD_HEIGHT_RATIO = 0.9             # Shorter than 0.8 x adult height = child.
 ADULT_HEIGHT_REF = [(0.7345, 0.1671), (0.8926, 0.3643)]
 GROUP_MIN = 3                        # Minimum people for the group rule.
 SUDDEN_MAX_AGE_SECONDS = 0.6         # A new track near the edge = sudden appearance.
