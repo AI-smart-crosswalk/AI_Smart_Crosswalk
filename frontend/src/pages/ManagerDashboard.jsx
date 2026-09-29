@@ -42,20 +42,96 @@ function ManagerDashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchDashboardData();
+  
+useEffect(() => {
 
-    // הגדרת WebSockets
-    const socketUrl = import.meta.env.VITE_API_URL.replace('/api', ''); 
-    const socket = io(socketUrl);
+  // Initial request:
+  // Get the current dashboard data from the database.
+  fetchDashboardData();
 
-    // ברגע שהבאקאנד משדר שמוקדן טיפל בהתרעה, אנחנו מושכים את הסטטיסטיקות מחדש!
-    socket.on('alert_resolved', () => {
+  // Connect to the backend Socket.io server.
+  const socketUrl =
+    import.meta.env.VITE_API_URL.replace('/api', '');
+
+  const socket = io(socketUrl);
+
+
+  // Increase the counter when an alert becomes resolved.
+  socket.on('alert_resolved', () => {
+
+    setDashboardData((prev) => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        totalAlerts: prev.stats.totalAlerts + 1
+      }
+    }));
+
+  });
+
+
+  // Decrease the counter when a resolved alert is reopened.
+  socket.on('alert_reopened', () => {
+
+    setDashboardData((prev) => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        totalAlerts: Math.max(
+          0,
+          prev.stats.totalAlerts - 1
+        )
+      }
+    }));
+
+  });
+
+
+  // Refresh dashboard data when a crosswalk is added.
+  socket.on('infra_added', (data) => {
+
+    if (data.type === 'crosswalk') {
       fetchDashboardData();
-    });
+    }
 
-    return () => socket.disconnect();
-  }, [intersectionFilter]); // הטריק כאן: בכל פעם שהפילטר משתנה, ה-useEffect רץ מחדש ומושך נתונים
+  });
+
+
+  // Refresh dashboard data when a crosswalk is updated.
+  socket.on('infra_updated', (data) => {
+
+    if (data.type === 'crosswalk') {
+      fetchDashboardData();
+    }
+
+  });
+
+
+  // Refresh dashboard data when a crosswalk is deleted.
+  socket.on('infra_deleted', (data) => {
+
+    if (data.type === 'crosswalk') {
+      fetchDashboardData();
+    }
+
+  });
+
+
+  // Disconnect when leaving the page.
+  return () => {
+
+    socket.off('alert_resolved');
+    socket.off('alert_reopened');
+
+    socket.off('infra_added');
+    socket.off('infra_updated');
+    socket.off('infra_deleted');
+
+    socket.disconnect();
+
+  };
+
+}, [intersectionFilter]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -112,15 +188,7 @@ function ManagerDashboard() {
                 <span className="text-2xl md:text-3xl font-black text-slate-800 mt-1">{dashboardData.stats.totalAlerts}</span>
             </div>
             <div className="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-center">
-                <span className="text-slate-500 text-xs md:text-sm font-bold">סכנה (90%+)</span>
-                <span className="text-2xl md:text-3xl font-black text-red-600 mt-1">{dashboardData.stats.highRisk}</span>
-            </div>
-            <div className="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-center">
-                <span className="text-slate-500 text-xs md:text-sm font-bold">זמן תגובה ממוצע</span>
-                <span className="text-2xl md:text-3xl font-black text-slate-800 mt-1">{dashboardData.stats.avgResponseTime || '4.2'} <span className="text-sm md:text-lg font-medium">דק'</span></span>
-            </div>
-            <div className="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-center">
-                <span className="text-slate-500 text-xs md:text-sm font-bold">צמתים פעילים</span>
+                <span className="text-slate-500 text-xs md:text-sm font-bold">צמתים תקינים</span>
                 <span className="text-2xl md:text-3xl font-black text-blue-600 mt-1">{dashboardData.stats.activeCrosswalks} / {dashboardData.stats.totalCrosswalks}</span>
             </div>
         </div>
