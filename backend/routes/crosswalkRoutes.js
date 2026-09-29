@@ -4,13 +4,18 @@ This file defines all HTTP endpoints
 for crosswalks.
 
 These endpoints allow creating,
-retrieving and updating
+retrieving, updating and deleting
 crosswalk information.
 ========================================
 */
 
 import express from 'express';
-import { createCrosswalk, fetchAllCrosswalks, updateCrosswalk } from '../services/crosswalkService.js';
+import {
+    createCrosswalk,
+    fetchAllCrosswalks,
+    updateCrosswalk,
+    deleteCrosswalk
+} from '../services/crosswalkService.js';
 import authenticate from '../middleware/authenticationMiddleware.js';
 import authorize from '../middleware/authorizationMiddleware.js';
 import { emitInfra } from '../config/socket.js';
@@ -108,6 +113,37 @@ router.put('/:id', authenticate, authorize('Admin', 'Technician'), async (req, r
     } catch (error) {
 
         // Return an error if the update failed.
+        res.status(400).json({ message: error.message });
+
+    }
+
+});
+
+/*
+========================================
+Delete an existing crosswalk.
+
+Accessible only to Admin users.
+========================================
+*/
+router.delete('/:id', authenticate, authorize('Admin'), async (req, res) => {
+
+    try {
+
+        // Delete the selected crosswalk.
+        const deleted = await deleteCrosswalk(req.params.id);
+
+        // Return an error if the crosswalk does not exist.
+        if (!deleted) {
+            return res.status(404).json({ message: 'Crosswalk not found' });
+        }
+
+        // Return a successful response.
+        res.status(200).json({ message: 'Crosswalk deleted successfully' });
+
+    } catch (error) {
+
+        // Return an error if the delete failed.
         res.status(400).json({ message: error.message });
 
     }
