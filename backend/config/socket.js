@@ -1,108 +1,240 @@
-// PROVENANCE: [RACHE] your code, unchanged.
-/* ============================================================
- * SANDBOX FILE - SETTLED. Copied UNCHANGED from your real repo (branch sprint4-rache).
- * ============================================================ */
 
-/**
- * config/socket.js
- * ----------------
- * Sets up Socket.io for real-time updates to the frontend.
- *   - initSocket(server): attaches Socket.io to the HTTP server.
- *   - getIO():            returns the shared Socket.io instance.
- *   - emitInfra():      pushes infra_added / infra_updated to the Admin page.
- *   - emitAlertResolved(): pushes alert_resolved to the Manager dashboard.
- *   - watchAlerts():      listens to the Alerts collection (MongoDB change
- *                         stream) and emits a "newAlert" event on every insert,
- *                         so new alerts reach the frontend live.
- */
+/*
+========================================
+Socket Configuration
+
+Responsibilities:
+- Initialize Socket.io.
+- Manage frontend socket connections.
+- Send infrastructure updates.
+- Send alert resolution updates.
+- Watch MongoDB for alert changes.
+- Send live alert updates to the frontend.
+========================================
+*/
 
 import { Server } from 'socket.io';
 import Alert from '../models/alert.js';
 
 let io = null;
 
-// Attach Socket.io to the shared HTTP server.
+
+/*
+========================================
+Initialize Socket.io
+========================================
+*/
+
 export const initSocket = (httpServer) => {
+
+    // Attach Socket.io to the HTTP server.
     io = new Server(httpServer, {
-        // Dev: open to all. Prod: set FRONTEND_URL in the env to lock it to the frontend origin.
-        cors: { origin: process.env.FRONTEND_URL || '*' },
+
+        // Allow the configured frontend URL.
+        cors: {
+            origin: process.env.FRONTEND_URL || '*'
+        }
+
     });
 
+    // Listen for new frontend connections.
     io.on('connection', (socket) => {
-        console.log(`Socket connected: ${socket.id}`);
-        socket.on('disconnect', () => console.log(`Socket disconnected: ${socket.id}`));
+
+        console.log(
+            `Socket connected: ${socket.id}`
+        );
+
+        // Listen for frontend disconnections.
+        socket.on('disconnect', () => {
+
+            console.log(
+                `Socket disconnected: ${socket.id}`
+            );
+
+        });
+
     });
 
     return io;
 };
+
+
+/*
+========================================
+Get Socket.io Instance
+========================================
+*/
 
 export const getIO = () => {
-    if (!io) throw new Error('Socket.io not initialized. Call initSocket first.');
+
+    // Verify that Socket.io was initialized.
+    if (!io) {
+
+        throw new Error(
+            'Socket.io not initialized. Call initSocket first.'
+        );
+
+    }
+
     return io;
 };
 
-/**
- * Infra live updates (Admin page).
- * Called by the crosswalk / camera / LED routes AFTER a successful DB write, so
- * every connected Admin sees the change. Events the frontend listens to:
- *   "infra_added"   (after POST)  -> { type, payload }
- *   "infra_updated" (after PUT)   -> { type, payload }
- * type = "crosswalk" | "camera" | "led", payload = the full saved document (with _id).
- */
-export const emitInfra = (event, type, payload) => {
+
+/*
+========================================
+Emit Infrastructure Update
+========================================
+*/
+
+export const emitInfra = (
+    event,
+    type,
+    payload
+) => {
+
     try {
-        getIO().emit(event, { type, payload });
-        console.log(`Live: emitted ${event} (${type}) ${payload?._id}`);
+
+        // Send infrastructure update to all connected clients.
+        getIO().emit(event, {
+            type,
+            payload
+        });
+
+        console.log(
+            `Live: emitted ${event} (${type}) ${payload?._id}`
+        );
+
     } catch (err) {
-        // The DB write already succeeded - a socket problem must not fail the request.
-        console.error(`Failed to emit ${event}: ${err.message}`);
+
+        // Socket errors should not affect a successful database operation.
+        console.error(
+            `Failed to emit ${event}: ${err.message}`
+        );
+
     }
+
 };
 
-/**
- * Manager dashboard sync: emitted when an operator marks an alert as handled
- * (isResolved false -> true). The dashboard listens and re-fetches
- * GET /api/analytics/dashboard with its current filter.
- */
+
+/*
+========================================
+Emit Alert Resolved
+========================================
+*/
+
 export const emitAlertResolved = (alert) => {
+
     try {
-        getIO().emit('alert_resolved', { _id: alert._id, crosswalkId: alert.crosswalkId });
-        console.log(`Live: emitted alert_resolved ${alert._id}`);
+
+        // Notify connected clients that an alert was resolved.
+        getIO().emit(
+            'alert_resolved',
+            {
+                _id: alert._id,
+                crosswalkId: alert.crosswalkId
+            }
+        );
+
+        console.log(
+            `Live: emitted alert_resolved ${alert._id}`
+        );
+
     } catch (err) {
-        console.error(`Failed to emit alert_resolved: ${err.message}`);
+
+        console.error(
+            `Failed to emit alert_resolved: ${err.message}`
+        );
+
     }
+
 };
 
-/**
- * Live feed via MongoDB Change Streams (works on Atlas / replica sets).
- * The DB is the single source of truth: whenever a new alert is INSERTED into
- * the collection, we push it to every connected frontend client. This is
- * decoupled from the write path, so any insert - from this API or elsewhere -
- * reaches the frontend.
- */
+
+/*
+========================================
+Watch Alert Changes
+========================================
+*/
+
 export const watchAlerts = () => {
+
     try {
-        const changeStream = Alert.watch([], { fullDocument: 'updateLookup' });
 
-        changeStream.on('change', (change) => {
-            if (change.operationType === 'insert') {
-                // A brand-new alert from the AI -> push to all clients.
-                getIO().emit('newAlert', change.fullDocument);
-                console.log(`Live: emitted newAlert ${change.fullDocument?._id}`);
-            } else if (change.operationType === 'update' || change.operationType === 'replace') {
-                // An existing alert changed (e.g. an operator set isResolved) ->
-                // push the updated doc so other screens stay in sync live.
-                getIO().emit('alertUpdated', change.fullDocument);
-                console.log(`Live: emitted alertUpdated ${change.fullDocument?._id}`);
+        // Watch the Alerts collection for database changes.
+        const changeStream = Alert.watch(
+            [],
+            {
+                fullDocument: 'updateLookup'
             }
-        });
+        );
 
-        changeStream.on('error', (err) => {
-            console.error(`Change stream error: ${err.message}`);
-        });
 
-        console.log('Change stream on Alerts collection is active.');
+        // Handle alert database changes.
+        changeStream.on(
+            'change',
+            (change) => {
+
+                // Send newly created alerts to all connected clients.
+                if (
+                    change.operationType === 'insert'
+                ) {
+
+                    getIO().emit(
+                        'newAlert',
+                        change.fullDocument
+                    );
+
+                    console.log(
+                        `Live: emitted newAlert ${change.fullDocument?._id}`
+                    );
+
+                }
+
+
+                // Send updated alerts to all connected clients.
+                else if (
+                    change.operationType === 'update' ||
+                    change.operationType === 'replace'
+                ) {
+
+                    getIO().emit(
+                        'alertUpdated',
+                        change.fullDocument
+                    );
+
+                    console.log(
+                        `Live: emitted alertUpdated ${change.fullDocument?._id}`
+                    );
+
+                }
+
+            }
+        );
+
+
+        // Handle MongoDB Change Stream errors.
+        changeStream.on(
+            'error',
+            (err) => {
+
+                console.error(
+                    `Change stream error: ${err.message}`
+                );
+
+            }
+        );
+
+
+        console.log(
+            'Change stream on Alerts collection is active.'
+        );
+
     } catch (err) {
-        console.error(`Failed to start change stream: ${err.message}`);
+
+        console.error(
+            `Failed to start change stream: ${err.message}`
+        );
+
     }
+
 };

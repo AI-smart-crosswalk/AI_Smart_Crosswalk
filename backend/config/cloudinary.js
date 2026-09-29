@@ -1,25 +1,33 @@
-// PROVENANCE: [RACHE] your code, unchanged.
-/* ============================================================
- * SANDBOX FILE - SETTLED. Copied UNCHANGED from your real repo (branch sprint4-rache).
- * ============================================================ */
+/*
+========================================
+This file configures the Cloudinary
+SDK used by the project.
 
-/**
- * config/cloudinary.js
- * --------------------
- * Configures the Cloudinary SDK with the credentials from .env.
- * (The upload logic lives in services/cloudinaryService.js.)
- */
+It loads the Cloudinary credentials
+from the environment variables
+and creates a shared Cloudinary
+instance used for image uploads.
+
+Used by:
+- services/cloudinaryService.js
+========================================
+*/
 
 import { v2 as cloudinary } from 'cloudinary';
 import dotenv from 'dotenv';
 
+// Load the environment variables.
 dotenv.config();
 
-// Credentials come from .env (never commit them).
+// Configure the Cloudinary SDK
+// using the credentials from .env.
 cloudinary.config({
+
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
+
 });
 
+// Export the configured Cloudinary instance.
 export default cloudinary;

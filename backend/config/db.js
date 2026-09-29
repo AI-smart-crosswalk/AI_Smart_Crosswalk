@@ -1,36 +1,67 @@
-// PROVENANCE: [MERGE] your db.js + Yossef's public-DNS workaround.
-/* ============================================================
- * SANDBOX FILE - SETTLED. MERGED: your db.js + Yossef's public-DNS workaround.
- * ============================================================ */
+/*
+========================================
+This file connects the backend
+to the MongoDB database.
 
-/**
- * config/db.js
- * ------------
- * Connects the app to MongoDB (Atlas) using the URI from .env.
- * Forces public DNS servers to avoid SRV-lookup failures on some networks
- * (fixes the Atlas "querySrv ENOTFOUND" error). Exits the process on failure
- * so we fail fast instead of running with no database.
- */
+It loads the database connection
+string from the environment variables
+and establishes the connection
+when the server starts.
+
+Used by:
+- app.js
+========================================
+*/
+
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import dns from 'dns';
 
-// Force Node.js to use public DNS servers (fixes Atlas "ENOTFOUND" on some networks).
+// Use public DNS servers.
+// This helps avoid DNS lookup
+// issues with MongoDB Atlas.
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 
-// Load environment variables (MONGO_URI, etc.)
+// Load the environment variables.
 dotenv.config();
 
+/*
+========================================
+Connect to the MongoDB database.
+
+Uses the connection string
+defined in the .env file.
+
+Stops the server if the
+connection fails.
+========================================
+*/
 const connectDB = async () => {
+
     try {
-        // Attempt to connect to MongoDB using the URI from .env
-        const conn = await mongoose.connect(process.env.MONGO_URI);
-        console.log(`MongoDB Connected: ${conn.connection.host}`);
+
+        // Connect to MongoDB.
+        const conn = await mongoose.connect(
+            process.env.MONGO_URI
+        );
+
+        // Display the connected host.
+        console.log(
+            `MongoDB Connected: ${conn.connection.host}`
+        );
+
     } catch (error) {
-        // Log the error and stop the process if the connection fails
-        console.error(`Error: ${error.message}`);
+
+        // Display the connection error.
+        console.error(
+            `Error: ${error.message}`
+        );
+
+        // Stop the application.
         process.exit(1);
+
     }
+
 };
 
 export default connectDB;
