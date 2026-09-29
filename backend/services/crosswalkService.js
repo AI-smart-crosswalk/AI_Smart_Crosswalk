@@ -1,25 +1,43 @@
-/**
- * services/crosswalkService.js
- * ----------------------------
- * Handles crosswalks: create, get all, update.
- */
+/*
+========================================
+Crosswalk Service
+
+This file handles crosswalk operations.
+It creates, retrieves, and updates
+crosswalks in the SmartWalk system.
+========================================
+*/
 
 import Crosswalk from '../models/crosswalk.js';
 
-// Create and save a new crosswalk document (Mongo assigns the _id).
+/*
+========================================
+Create Crosswalk
+========================================
+*/
 export const createCrosswalk = async (crosswalkData) => {
+    // Save the new crosswalk in the database.
     const newCrosswalk = new Crosswalk(crosswalkData);
     return await newCrosswalk.save();
 };
 
-// Return every crosswalk in the DB as a plain array (no filters, no joins).
+/*
+========================================
+Get All Crosswalks
+========================================
+*/
 export const fetchAllCrosswalks = async () => {
     return await Crosswalk.find();
 };
 
-// Update a crosswalk by its _id. Partial update: only the fields sent change.
-// Returns the updated document, or null if the id was not found.
+/*
+========================================
+Update Crosswalk
+========================================
+*/
 export const updateCrosswalk = async (id, updates) => {
+    // Update only the sent fields.
+    // Returns null if the crosswalk was not found.
     return await Crosswalk.findByIdAndUpdate(id, updates, {
         returnDocument: 'after',
         runValidators: true,

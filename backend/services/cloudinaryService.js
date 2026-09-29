@@ -1,21 +1,26 @@
-// PROVENANCE: [RACHE] your service.
-/* ============================================================
- * SANDBOX FILE - SETTLED. Copied UNCHANGED from your real repo (branch sprint4-rache).
- * ============================================================ */
+/*
+========================================
+Cloudinary Service
+
+This file uploads alert images to Cloudinary
+and returns the hosted image URL.
+========================================
+*/
 
 import cloudinary from '../config/cloudinary.js';
 
-/**
- * Upload a snapshot to Cloudinary and return its hosted URL.
- * Accepts either a full data URI ("data:image/jpeg;base64,...") or a bare
- * base64 string (we add the prefix if it is missing).
- */
-
+/*
+========================================
+Upload Image
+========================================
+*/
 export const uploadImage = async (image) => {
+    // Add the data URI prefix if the image is a plain base64 string.
     const dataUri = image.startsWith('data:')
         ? image
         : `data:image/jpeg;base64,${image}`;
 
+    // Upload the image to the alerts folder.
     const result = await cloudinary.uploader.upload(dataUri, {
         folder: 'crosswalk_alerts',
     });

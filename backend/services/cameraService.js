@@ -1,30 +1,53 @@
-/**
- * services/cameraService.js
- * -------------------------
- * Handles cameras: create, get all, get by crosswalk, update.
- */
+/*
+========================================
+Camera Service
+
+This file handles camera operations.
+It creates, retrieves, and updates
+cameras in the SmartWalk system.
+========================================
+*/
 
 import Camera from '../models/camera.js';
 
-// Create and save a new camera document (Mongo assigns the _id).
+/*
+========================================
+Create Camera
+========================================
+*/
 export const createCamera = async (cameraData) => {
+    // Save the new camera in the database.
     const newCamera = new Camera(cameraData);
     return await newCamera.save();
 };
 
-// Return every camera in the DB.
+/*
+========================================
+Get All Cameras
+========================================
+*/
 export const fetchAllCameras = async () => {
     return await Camera.find();
 };
 
-// Return only the cameras that belong to a given crosswalk (junctionId = crosswalk _id).
+/*
+========================================
+Get Cameras By Crosswalk
+========================================
+*/
 export const fetchCamerasByJunction = async (junctionId) => {
+    // junctionId is the _id of the crosswalk.
     return await Camera.find({ junctionId });
 };
 
-// Update a camera by its _id. Partial update; also refreshes lastUpdated.
-// Returns null if not found.
+/*
+========================================
+Update Camera
+========================================
+*/
 export const updateCamera = async (id, updates) => {
+    // Update the sent fields and refresh lastUpdated.
+    // Returns null if the camera was not found.
     return await Camera.findByIdAndUpdate(
         id,
         { ...updates, lastUpdated: Date.now() },
