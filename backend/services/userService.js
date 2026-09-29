@@ -31,7 +31,7 @@ const createUser = async (req, res) => {
             return res.status(403).json({ message: "Admin only" });
         }
 
-        const { username, name, role, password } = req.body;
+        const { username, name, role, password, idNumber, phone, email, address } = req.body;
 
         // Check that all fields are valid.
         if (!username || !name || !password || !role) {
@@ -60,12 +60,19 @@ const createUser = async (req, res) => {
             username: username,
             passwordHash: passwordHash,
             role: role,
+            idNumber: idNumber,
+            phone: phone,
+            email: email,
+            address: address,
         });
         await user.save();
 
         return res.status(201).json({
             message: "User created successfully",
-            user: { _id: user._id, id: user.id, name: user.name, username: user.username, role: user.role, status: user.status },
+            user: {
+                _id: user._id, id: user.id, name: user.name, username: user.username, role: user.role, status: user.status,
+                idNumber: user.idNumber, phone: user.phone, email: user.email, address: user.address,
+            },
         });
     } catch (error) {
         return res.status(500).json({ message: error.message });
@@ -150,12 +157,16 @@ const updateUser = async (req, res) => {
             return res.status(403).json({ message: "Admin only" });
         }
         // Allow only safe fields to be updated (not the password).
-        const { role, status, username, name } = req.body;
+        const { role, status, username, name, idNumber, phone, email, address } = req.body;
         const updates = {};
         if (role !== undefined) updates.role = role;
         if (status !== undefined) updates.status = status;
         if (username !== undefined) updates.username = username;
         if (name !== undefined) updates.name = name;
+        if (idNumber !== undefined) updates.idNumber = idNumber;
+        if (phone !== undefined) updates.phone = phone;
+        if (email !== undefined) updates.email = email;
+        if (address !== undefined) updates.address = address;
 
         const updated = await User.findOneAndUpdate(userFilter(req.params.id), updates, {
             new: true,            // Return the updated user.

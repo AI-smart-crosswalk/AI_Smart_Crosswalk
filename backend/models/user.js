@@ -6,13 +6,15 @@ This model represents a system user who logs
 into the SmartWalk dashboard (for example an
 Admin, Manager, Dispatcher, or Technician).
 It stores the user's code, full name, username,
-hashed password, role, account status,
-last login time, and creation time.
+hashed password, role, account status, optional
+contact details, last login time, and creation time.
 
 Notes:
 - Users are created only by an Admin
   (there is no public registration).
-- There is no email. Login is by username.
+- Login is by username, not email.
+- idNumber, phone, email and address are optional
+  and not unique - see the comment on email below.
 - Passwords are stored hashed, never in plain text.
 ========================================
 */
@@ -32,6 +34,14 @@ const userSchema = new mongoose.Schema({
 
     // Login name. Must be unique (no two users with the same username).
     username: { type: String, required: true, unique: true },
+
+    // Optional contact/identity details, set by the Admin. Not unique on
+    // purpose - a unique index on email is what broke user creation before,
+    // since Mongo treats every missing field as the same null value.
+    idNumber: { type: String, default: "", trim: true },
+    phone: { type: String, default: "", trim: true },
+    email: { type: String, default: "", trim: true, lowercase: true },
+    address: { type: String, default: "", trim: true },
 
     // Hashed password (bcrypt). The plain password is never saved.
     passwordHash: { type: String, required: true },
