@@ -1,44 +1,49 @@
-# PROVENANCE: [MERGE] Yossef's flat output format + your confidence threshold + config allow-list.
-# ============================================================
-# SANDBOX - MERGED pure detector (caller-agnostic: image -> detections).
-# = Yossef's flat JSON output {classId,confidence,x,y,width,height}
-#   + YOUR confidence threshold
-#   + config-driven allow-list (config.TARGET_CLASS_IDS).
-# Loads YOLO once. Knows nothing about FastAPI - app.py calls detect().
-# NOTE: the allow-list is provisional until the danger events are defined.
-# ============================================================
+"""
+========================================
+Object Detector
+
+This file runs the YOLO model on an image
+and returns the detected objects as simple
+dictionaries. The model is loaded only once.
+========================================
+"""
 
 from ultralytics import YOLO
 import config
 
-# Load the model once (reused for every image).
+# Load the model once and reuse it for every image.
 model = YOLO(config.MODEL_PATH)
 
 
+# ========================================
+# Detect Objects
+# ========================================
 def detect(image):
     """
-    Run YOLOv8 on one image (path or array) and return a list of detections.
-    Each detection is a flat, JSON-friendly dict:
+    Run YOLO on one image (path or array) and return a list of detections.
+    Each detection is a dict:
         {classId, confidence, x, y, width, height}
-    Only classes in the allow-list and above the confidence threshold are kept.
+    Only allowed classes above the confidence threshold are kept.
     """
-    results = model(image, verbose=False)[0]   # one image in -> one result
+    results = model(image, verbose=False)[0]   # One image gives one result.
 
     detections = []
     for box in results.boxes:
         class_id = int(box.cls[0])
-        # keep only the classes our danger rules care about
+        # Keep only the classes the risk rules need.
         if class_id not in config.TARGET_CLASS_IDS:
             continue
 
+        # Skip detections with low confidence.
         confidence = float(box.conf[0])
         if confidence < config.CONFIDENCE_THRESHOLD:
             continue
 
+        # Convert the box corners to x, y, width, height.
         x1, y1, x2, y2 = (float(v) for v in box.xyxy[0])
         detections.append({
             "classId": class_id,
-            "label": results.names[class_id],   # e.g. "person", "car", "cell phone"
+            "label": results.names[class_id],   # For example "person", "car", "cell phone".
             "confidence": round(confidence, 3),
             "x": x1,
             "y": y1,

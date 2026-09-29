@@ -1,13 +1,11 @@
-# PROVENANCE: [RACHE] your install smoke test.
-# ============================================================
-# SANDBOX FILE - SETTLED. Your install smoke test (loads YOLOv8 on one image).
-# ============================================================
-
 """
-verify_setup.py
----------------
-Phase 1 install check: loads the lightweight YOLOv8 model and runs it on a
-single test image to confirm OpenCV + Ultralytics are installed correctly.
+========================================
+Setup Check
+
+This file checks that the AI tools are installed.
+It loads the YOLO model and runs it on one test
+image to confirm that OpenCV and Ultralytics work.
+========================================
 """
 
 import argparse
@@ -17,17 +15,19 @@ try:
     import cv2
     from ultralytics import YOLO
 except ImportError as exc:
-    # Fail fast with a clear message instead of a raw traceback.
+    # Show a clear message if a library is missing.
     print(f"[ERROR] Missing dependency: {exc.name}. "
           f"Did you activate the venv and run 'pip install -r requirements.txt'?")
     sys.exit(1)
 
 
-# Ultralytics ships a hosted sample image ("bus.jpg") that is convenient for a
-# smoke test. Passing this string lets YOLO fetch it automatically.
+# Online sample image. YOLO downloads it automatically.
 DEFAULT_SAMPLE = "https://ultralytics.com/images/bus.jpg"
 
 
+# ========================================
+# Read Command Line Options
+# ========================================
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="YOLOv8 installation smoke test.")
     parser.add_argument(
@@ -48,18 +48,21 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+# ========================================
+# Main
+# ========================================
 def main() -> int:
     args = parse_args()
 
-    # 1. Load the model. Ultralytics downloads the weights on first use.
+    # 1. Load the model (downloaded on first use).
     print(f"[INFO] Loading model '{args.model}' ...")
     try:
         model = YOLO(args.model)
-    except Exception as exc:  # broad catch: download / corrupt-weights failures
+    except Exception as exc:  # For example, a failed download or a broken file.
         print(f"[ERROR] Could not load model: {exc}")
         return 1
 
-    # 2. Run inference on the test image.
+    # 2. Run the model on the test image.
     print(f"[INFO] Running inference on '{args.image}' ...")
     try:
         results = model(args.image)
@@ -67,17 +70,16 @@ def main() -> int:
         print(f"[ERROR] Inference failed: {exc}")
         return 1
 
-    # 3. Report what was detected. `results` is a list (one entry per image).
+    # 3. Print the detected objects (one result per image).
     result = results[0]
-    names = result.names  # {class_id: class_name}
+    names = result.names  # Maps class id to class name.
     print(f"[INFO] Detected {len(result.boxes)} object(s):")
     for box in result.boxes:
         class_id = int(box.cls[0])
         confidence = float(box.conf[0])
         print(f"    - {names[class_id]:<12} conf={confidence:.2f}")
 
-    # 4. Optionally display the annotated frame so we can eyeball the result.
-    #    result.plot() returns a BGR numpy array with boxes already drawn.
+    # 4. Show the image with the detected boxes (unless --no-window is used).
     if not args.no_window:
         annotated = result.plot()
         cv2.imshow("YOLOv8 Verification - press any key to close", annotated)

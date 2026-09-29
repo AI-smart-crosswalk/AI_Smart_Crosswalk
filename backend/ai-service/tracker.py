@@ -1,19 +1,17 @@
-# PROVENANCE: [LIEL] Sprint 4 point 1 (new file). Style follows Rachel's Sprint 3 vision/ modules.
 """
-tracker.py
-----------
-Gives every detected PERSON a stable id across video frames, so risk_rules.py can
-measure direction, speed and time-to-edge per person (YOLO alone sees each frame
-independently and does not know that "the person in frame 12" is the same one
-as in frame 11).
+========================================
+Object Tracker
 
-Two implementations behind one small interface  ->  tracker.process(t, frame):
-  * SimpleTracker : our own matcher on top of detector.detect() (no extra dependencies,
-                    fully unit-tested). Default (config.TRACKER = "simple").
-  * YoloTracker   : ultralytics' built-in ByteTrack (model.track). Better on real
-                    footage, needs ultralytics installed. config.TRACKER = "yolo".
+This file gives every detected person a stable id
+across video frames. This lets the risk rules measure
+the direction, speed, and time to the edge of each person.
+YOLO alone does not know that a person in two frames
+is the same person.
 
-Both return the SAME Track/Observation objects, plus the phones seen in the frame.
+There are two trackers with the same interface:
+  * SimpleTracker: a built-in matcher (default, config.TRACKER = "simple").
+  * YoloTracker:   the ByteTrack tracker of Ultralytics (config.TRACKER = "yolo").
+========================================
 """
 from __future__ import annotations
 
@@ -23,19 +21,21 @@ from statistics import median
 import config
 
 
-# ---------------------------------------------------------------- data model
+# ========================================
+# Observation
+# ========================================
 @dataclass
 class Observation:
-    """One person in one analysed frame."""
-    t: float                 # video time in seconds (frame_index / fps)
+    """One object in one analyzed frame."""
+    t: float                 # Video time in seconds.
     x1: float
     y1: float
     x2: float
     y2: float
     confidence: float
-    truncated: bool          # box touches a frame border -> its height is not the real body height
-    phone: bool              # a cell phone was assigned to this person in this frame
-    kind: str = "person"     # "person" | "wheeled" (bicycle/motorcycle approaching)
+    truncated: bool          # The box touches the frame border, so the height is not full.
+    phone: bool              # The person holds a phone in this frame.
+    kind: str = "person"     # "person" or "wheeled" (bicycle / motorcycle).
 
     @property
     def width(self) -> float:
@@ -47,21 +47,24 @@ class Observation:
 
     @property
     def anchor(self) -> tuple[float, float]:
-        """Bottom-centre of the box = where the feet touch the ground (Rachel's ROI_ANCHOR)."""
+        """Bottom center of the box = where the feet touch the ground."""
         return (self.x1 + self.x2) / 2.0, self.y2
 
     @property
     def chest(self) -> tuple[float, float]:
-        """Yossef's chest point (35% down from the top of the box), used for the phone rule."""
+        """Chest point (35% down from the top of the box), used for the phone rule."""
         return (self.x1 + self.x2) / 2.0, self.y1 + 0.35 * self.height
 
 
+# ========================================
+# Track
+# ========================================
 @dataclass
 class Track:
-    """One tracked object (person or wheeled) followed over time."""
+    """One object (person or wheeled) followed over time."""
     track_id: int
     observations: list[Observation] = field(default_factory=list)
-    kind: str = "person"     # "person" | "wheeled"
+    kind: str = "person"     # "person" or "wheeled".
 
     @property
     def born_at(self) -> float:
@@ -77,9 +80,8 @@ class Track:
     @property
     def h_ref(self) -> float:
         """
-        Reference body height in pixels: the median height of the UNTRUNCATED
-        observations (a box cut by the frame border is shorter than the person).
-        Falls back to all observations when every box is truncated.
+        Body height in pixels: the median height of the full (not cut off) boxes.
+        If every box is cut off, all boxes are used.
         """
         good = [o.height for o in self.observations if not o.truncated]
         return float(median(good if good else [o.height for o in self.observations]))
@@ -90,8 +92,8 @@ class Track:
 
     def trim(self, t: float) -> None:
         """
-        Forget history nobody looks at any more (long videos / webcams would otherwise grow
-        without bound). The FIRST observation is always kept: born_at and the H4 rule need it.
+        Remove old observations so memory does not keep growing.
+        The first observation is always kept (born_at and rule H4 need it).
         """
         keep_from = t - max(config.RISK_WINDOW_SECONDS, 2 * config.TRACK_MAX_GAP_SECONDS) - 1.0
         if len(self.observations) > 2 and self.observations[1].t < keep_from:
@@ -99,7 +101,9 @@ class Track:
             self.observations = [first] + [o for o in self.observations[1:] if o.t >= keep_from]
 
 
-# ---------------------------------------------------------------- helpers on raw detections
+# ========================================
+# Detection Helpers
+# ========================================
 def is_truncated(det: dict, frame_w: int, frame_h: int, margin: float = config.TRUNCATION_MARGIN) -> bool:
     """True if the box touches any border of the frame (within `margin` of the frame size)."""
     mx, my = margin * frame_w, margin * frame_h
@@ -109,7 +113,7 @@ def is_truncated(det: dict, frame_w: int, frame_h: int, margin: float = config.T
 
 
 def iou(a: dict, b: dict) -> float:
-    """Intersection-over-union of two detector boxes {x, y, width, height}."""
+    """How much two boxes overlap (intersection over union, 0 to 1)."""
     ax2, ay2 = a["x"] + a["width"], a["y"] + a["height"]
     bx2, by2 = b["x"] + b["width"], b["y"] + b["height"]
     iw = max(0.0, min(ax2, bx2) - max(a["x"], b["x"]))
@@ -120,7 +124,7 @@ def iou(a: dict, b: dict) -> float:
 
 
 def suppress_duplicates(persons: list[dict], iou_threshold: float = config.DUPLICATE_IOU) -> list[dict]:
-    """YOLO sometimes returns two boxes for one person; keep the more confident one."""
+    """YOLO sometimes returns two boxes for one person. Keep the more confident one."""
     kept: list[dict] = []
     for det in sorted(persons, key=lambda d: d["confidence"], reverse=True):
         if all(iou(det, k) < iou_threshold for k in kept):
@@ -131,12 +135,12 @@ def suppress_duplicates(persons: list[dict], iou_threshold: float = config.DUPLI
 def assign_phones(persons: list[dict], phones: list[dict],
                   max_dist_h: float = config.PHONE_MAX_DIST) -> set[int]:
     """
-    Decide which persons are holding a phone in this frame. One phone -> one person
-    (nearest first), so a single phone cannot light up a whole group.
-    A phone counts if its centre is within `max_dist_h` body heights of the chest
-    point, OR it lies inside the upper 60% of the person's box (hand at waist level).
-    Returns the indices (into `persons`) that hold a phone.
+    Decide which people hold a phone in this frame.
+    Each phone is given to one person only (the nearest one).
+    A phone counts if it is near the chest, or inside the upper 60% of the person's box.
+    Returns the indexes of the people who hold a phone.
     """
+    # Find all close (person, phone) pairs.
     candidates = []                                   # (distance_in_h, person_index, phone_index)
     for pi, p in enumerate(persons):
         h = p["height"] or 1.0
@@ -147,6 +151,7 @@ def assign_phones(persons: list[dict], phones: list[dict],
             inside_upper = (p["x"] <= qx <= p["x"] + p["width"]) and (p["y"] <= qy <= p["y"] + 0.6 * h)
             if d < max_dist_h or inside_upper:
                 candidates.append((d, pi, qi))
+    # Give each phone to the closest person first.
     holders: set[int] = set()
     used_phones: set[int] = set()
     for d, pi, qi in sorted(candidates):
@@ -158,46 +163,51 @@ def assign_phones(persons: list[dict], phones: list[dict],
 
 
 def split_detections(detections: list[dict]) -> tuple[list[dict], list[dict], list[dict]]:
-    """detector.detect() output -> (persons, phones, wheeled). Other vehicles are ignored here."""
+    """Split the detections into (persons, phones, wheeled). Other vehicles are ignored."""
     persons = [d for d in detections if d["classId"] == config.PERSON_CLASS_ID]
     phones = [d for d in detections if d["classId"] == config.PHONE_CLASS_ID]
     wheeled = [d for d in detections if d["classId"] in config.WHEELED_CLASS_IDS]
     return persons, phones, wheeled
 
 
-# ---------------------------------------------------------------- SimpleTracker
+# ========================================
+# Simple Tracker
+# ========================================
 class SimpleTracker:
     """
-    Frame-to-frame matcher. For every live track we PREDICT where the person should
-    be now (last position + last velocity * dt) and match the closest new box, as
-    long as it is within a plausible distance (gate) and has a plausible size.
-    Unmatched boxes start new tracks; tracks unseen for TRACK_MAX_GAP_SECONDS die.
+    Matches boxes from frame to frame. For every track, it predicts where the
+    person should be now and matches the closest new box with a similar size.
+    New boxes start new tracks. Tracks not seen for TRACK_MAX_GAP_SECONDS are removed.
     """
 
     def __init__(self, detect_fn=None):
-        # Dependency injection: tests pass a stub, production uses detector.detect (YOLO).
+        # Tests pass a fake detector; otherwise use the YOLO detector.
         if detect_fn is None:
-            from detector import detect as detect_fn       # lazy: importing detector loads YOLO
+            from detector import detect as detect_fn       # Import here because it loads YOLO.
         self.detect = detect_fn
         self._tracks: dict[int, Track] = {}
         self._next_id = 1
         self._dead: list[tuple[float, tuple[float, float], float]] = []   # (t_death, anchor, h_ref)
 
-    # -- public -----------------------------------------------------------------
+    # ----------------------------------------
+    # Public Methods
+    # ----------------------------------------
     @property
     def live_tracks(self) -> list[Track]:
         return list(self._tracks.values())
 
     def process(self, t: float, frame) -> tuple[list[Track], list[dict]]:
         """
-        Detect + match one frame. Returns (tracks seen in THIS frame, phone detections).
+        Detect and match one frame. Returns (tracks seen in this frame, phone detections).
         """
         frame_h, frame_w = frame.shape[:2]
         persons, phones, wheeled = split_detections(self.detect(frame))
+        # Remove small and duplicate person boxes, then find phone holders.
         persons = [p for p in persons if p["height"] >= config.MIN_PERSON_HEIGHT_PX]
         persons = suppress_duplicates(persons)
         holders = assign_phones(persons, phones)
 
+        # Create an observation for each person.
         observations = [
             Observation(
                 t=t, x1=p["x"], y1=p["y"], x2=p["x"] + p["width"], y2=p["y"] + p["height"],
@@ -208,7 +218,7 @@ class SimpleTracker:
             for i, p in enumerate(persons)
         ]
 
-        # Wheeled approachers (bicycle/motorcycle) tracked alongside people, tagged kind="wheeled".
+        # Track bicycles and motorcycles too, with kind="wheeled".
         wheeled = [w for w in wheeled if w["height"] >= config.WHEELED_MIN_HEIGHT_PX]
         wheeled = suppress_duplicates(wheeled)
         observations += [
@@ -221,14 +231,15 @@ class SimpleTracker:
             for w in wheeled
         ]
 
+        # Remove old tracks, then match the new observations.
         self._expire(t)
         seen = self._match(t, observations)
         return seen, phones
 
     def recently_died_near(self, t: float, anchor: tuple[float, float], h_ref: float) -> bool:
         """
-        True if a track ended a moment ago close to `anchor`. Used by risk_rules to
-        avoid calling a re-identified person a "sudden appearance" (H4).
+        True if a track ended a moment ago near `anchor`. This stops the risk rules
+        from treating a person who was seen again as a "sudden appearance" (H4).
         """
         horizon = 2.0 * config.TRACK_MAX_GAP_SECONDS
         for t_death, dead_anchor, dead_h in self._dead:
@@ -239,9 +250,11 @@ class SimpleTracker:
                 return True
         return False
 
-    # -- internals ----------------------------------------------------------------
+    # ----------------------------------------
+    # Internal Methods
+    # ----------------------------------------
     def _expire(self, t: float) -> None:
-        """Retire tracks that have not been seen for TRACK_MAX_GAP_SECONDS."""
+        """Remove tracks that were not seen for TRACK_MAX_GAP_SECONDS."""
         for tid in [tid for tid, tr in self._tracks.items() if t - tr.last.t > config.TRACK_MAX_GAP_SECONDS]:
             tr = self._tracks.pop(tid)
             self._dead.append((tr.last.t, tr.last.anchor, tr.h_ref))
@@ -249,7 +262,7 @@ class SimpleTracker:
 
     @staticmethod
     def _predict(track: Track, t: float) -> tuple[float, float]:
-        """Constant-velocity prediction of the anchor at time t."""
+        """Predict where the feet will be at time t, using the last speed."""
         obs = track.observations
         ax, ay = obs[-1].anchor
         if len(obs) < 2:
@@ -262,7 +275,8 @@ class SimpleTracker:
         return ax + (ax - px) / dt_prev * dt, ay + (ay - py) / dt_prev * dt
 
     def _match(self, t: float, observations: list[Observation]) -> list[Track]:
-        """Greedy global assignment: cheapest (track, observation) pairs first."""
+        """Match tracks to observations, closest pairs first."""
+        # Find all possible (track, observation) pairs.
         pairs = []                                                   # (cost, track_id, obs_index)
         for tid, tr in self._tracks.items():
             dt = max(t - tr.last.t, 1e-6)
@@ -271,12 +285,14 @@ class SimpleTracker:
             pred = self._predict(tr, t)
             for oi, ob in enumerate(observations):
                 if tr.kind != ob.kind:
-                    continue                              # never match a person box to a wheeled track
+                    continue                              # Do not match a person with a wheeled object.
+                # Skip boxes with a very different size.
                 if not (ob.truncated or tr.last.truncated):
                     ratio = ob.height / tr.last.height if tr.last.height > 0 else 1.0
                     lo, hi = config.TRACK_SIZE_RATIO
                     if not (lo <= ratio <= hi):
                         continue
+                # Keep the pair only if the box is close to the predicted position.
                 ax, ay = ob.anchor
                 dist_px = ((ax - pred[0]) ** 2 + (ay - pred[1]) ** 2) ** 0.5
                 if dist_px <= gate_px:
@@ -285,6 +301,7 @@ class SimpleTracker:
         matched_tracks: set[int] = set()
         matched_obs: set[int] = set()
         seen: list[Track] = []
+        # Add each observation to its matched track.
         for _cost, tid, oi in sorted(pairs):
             if tid in matched_tracks or oi in matched_obs:
                 continue
@@ -294,6 +311,7 @@ class SimpleTracker:
             matched_obs.add(oi)
             seen.append(self._tracks[tid])
 
+        # Start a new track for every observation that was not matched.
         for oi, ob in enumerate(observations):
             if oi in matched_obs:
                 continue
@@ -304,18 +322,18 @@ class SimpleTracker:
         return seen
 
 
-# ---------------------------------------------------------------- YoloTracker (optional)
+# ========================================
+# YOLO Tracker (optional)
+# ========================================
 class YoloTracker:
     """
-    Uses ultralytics' built-in tracker (ByteTrack) which assigns ids itself.
-    Same interface as SimpleTracker. NOTE: not exercised by the unit tests on this
-    machine (ultralytics is not installed here); it is the production option for
-    real footage once the team installs requirements.txt.
+    Uses the ByteTrack tracker of Ultralytics, which gives the ids by itself.
+    Same interface as SimpleTracker. It is not covered by the unit tests.
     """
 
     def __init__(self, model=None, tracker_cfg: str = "bytetrack.yaml"):
         if model is None:
-            from detector import model                        # the YOLO model Rachel's detector loads once
+            from detector import model                        # The YOLO model loaded by the detector.
         self.model = model
         self.tracker_cfg = tracker_cfg
         self._tracks: dict[int, Track] = {}
@@ -327,11 +345,13 @@ class YoloTracker:
 
     def process(self, t: float, frame) -> tuple[list[Track], list[dict]]:
         frame_h, frame_w = frame.shape[:2]
+        # Run YOLO with tracking on the frame.
         results = self.model.track(frame, persist=True, verbose=False, tracker=self.tracker_cfg,
                                    conf=config.CONFIDENCE_THRESHOLD,
                                    classes=sorted(config.TARGET_CLASS_IDS))[0]
         persons, phones, ids = [], [], []
         wheeled, wheeled_ids = [], []
+        # Split the boxes into persons, phones, and wheeled objects.
         for box in results.boxes:
             class_id = int(box.cls[0])
             x1, y1, x2, y2 = (float(v) for v in box.xyxy[0])
@@ -348,6 +368,7 @@ class YoloTracker:
         holders = assign_phones(persons, phones)
 
         seen: list[Track] = []
+        # Add each person to its track.
         for i, (p, tid) in enumerate(zip(persons, ids)):
             if p["height"] < config.MIN_PERSON_HEIGHT_PX:
                 continue
@@ -359,6 +380,7 @@ class YoloTracker:
             tr.trim(t)
             seen.append(tr)
 
+        # Add each wheeled object to its track.
         for w, tid in zip(wheeled, wheeled_ids):
             if w["height"] < config.WHEELED_MIN_HEIGHT_PX:
                 continue
@@ -370,6 +392,7 @@ class YoloTracker:
             tr.trim(t)
             seen.append(tr)
 
+        # Remove tracks that were not seen for too long.
         for tid in [tid for tid, tr in self._tracks.items() if t - tr.last.t > config.TRACK_MAX_GAP_SECONDS]:
             tr = self._tracks.pop(tid)
             self._dead.append((tr.last.t, tr.last.anchor, tr.h_ref))
@@ -377,11 +400,14 @@ class YoloTracker:
         return seen, phones
 
     def recently_died_near(self, t: float, anchor: tuple[float, float], h_ref: float) -> bool:
-        return SimpleTracker.recently_died_near(self, t, anchor, h_ref)   # same logic, same fields
+        return SimpleTracker.recently_died_near(self, t, anchor, h_ref)   # Same logic as SimpleTracker.
 
 
+# ========================================
+# Build Tracker
+# ========================================
 def build_tracker(detect_fn=None):
-    """Factory driven by config.TRACKER."""
+    """Create the tracker chosen in config.TRACKER."""
     if config.TRACKER == "yolo":
         return YoloTracker()
     return SimpleTracker(detect_fn=detect_fn)

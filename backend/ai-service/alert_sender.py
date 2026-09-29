@@ -1,15 +1,11 @@
-# PROVENANCE: [RACHE] Sprint 3 vision/alert_service.py (queue + background thread + payload builder),
-#             restored from git history (branch feat/api-founation).
-#             [LIEL] adapted: payload = Rachel's Sprint 4 alert schema (models/alert.js), URL = port 3000,
-#             snapshot as imageBase64, retry once WITHOUT the image if the backend rejects (so a
-#             Cloudinary problem never loses a safety event), NullAlertSender records events for tests.
 """
-alert_sender.py
----------------
-Background POST sender: the video loop must never wait for the network.
-  sender.send(event)  -> returns immediately (queued)
-  a daemon thread     -> POSTs to config.API_URL (Rachel's POST /api/alerts, which uploads the
-                         image to Cloudinary, saves to MongoDB and pushes to the dashboard live)
+========================================
+Alert Sender
+
+This file sends risk alerts to the backend.
+Alerts are sent from a background thread,
+so the video loop never waits for the network.
+========================================
 """
 from __future__ import annotations
 
@@ -25,21 +21,27 @@ import config
 from risk_rules import Assessment
 
 
+# ========================================
+# Risk Event
+# ========================================
 @dataclass
 class RiskEvent:
-    """A verdict worth reporting, with the context the backend needs."""
+    """A risk result to report, with the data the backend needs."""
     assessment: Assessment
     crosswalk_id: str
     camera_id: str
-    video_time: float                      # seconds into the video
+    video_time: float                      # Seconds from the start of the video.
     frame_index: int
-    snapshot_base64: str | None = None     # JPEG of the analysed frame
+    snapshot_base64: str | None = None     # JPEG image of the frame.
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+# ========================================
+# Build Alert Payload
+# ========================================
 def build_payload(event: RiskEvent, include_image: bool = True) -> dict:
-    """Map a RiskEvent onto Rachel's alert schema (backend/models/alert.js)."""
+    """Convert a RiskEvent to the alert format of the backend."""
     a = event.assessment
     meters = config.METERS_PER_H
     dist_h = a.metadata.get("distanceToEdgeH")
@@ -53,19 +55,23 @@ def build_payload(event: RiskEvent, include_image: bool = True) -> dict:
         "confidence": a.confidence,
         "personType": a.person_type,
         "distracted": a.distracted,
-        # metres only when the camera is calibrated; otherwise null (never invent numbers)
+        # Use meters only if the camera is calibrated, otherwise send null.
         "distanceFromCrosswalk": round(dist_h * meters, 2) if (meters and dist_h is not None) else None,
         "approachSpeed": round(speed_h * meters, 2) if (meters and speed_h is not None) else None,
-        "ledTriggered": a.danger,          # two thresholds: Low = log only, Medium/High = LEDs
+        "ledTriggered": a.danger,          # Low = log only, Medium/High = turn on LEDs.
         "timestamp": event.created_at.isoformat(),
     }
+    # Add the image only if requested and available.
     if include_image and event.snapshot_base64:
         payload["imageBase64"] = event.snapshot_base64
     return payload
 
 
+# ========================================
+# Alert Sender
+# ========================================
 class AlertSender:
-    """Background POST sender for risk events (Rachel's AlertService, adapted)."""
+    """Sends risk events to the backend in a background thread."""
 
     _STOP = object()
 
@@ -76,15 +82,19 @@ class AlertSender:
         self._queue: "queue.Queue" = queue.Queue(maxsize=max_queue)
         self._worker: threading.Thread | None = None
         self._session = requests.Session()
-        if config.SENSOR_API_KEY:                  # backend protects POST /api/alerts with x-api-key
+        # The backend requires an API key to accept alerts.
+        if config.SENSOR_API_KEY:
             self._session.headers["x-api-key"] = config.SENSOR_API_KEY
         else:
             print("[WARN] SENSOR_API_KEY is not set - the backend will reject alerts (401).")
         self.delivered = 0
         self.failed = 0
 
-    # --- Lifecycle --------------------------------------------------------
+    # ----------------------------------------
+    # Start and Stop
+    # ----------------------------------------
     def start(self) -> None:
+        # Do nothing if the worker thread is already running.
         if self._worker and self._worker.is_alive():
             return
         self._worker = threading.Thread(target=self._run, name="AlertWorker", daemon=True)
@@ -95,28 +105,33 @@ class AlertSender:
         if not self._worker:
             return
         if drain:
-            self._queue.put(self._STOP)          # let queued alerts flush first
+            self._queue.put(self._STOP)          # Send the queued alerts before stopping.
         self._worker.join(timeout=self.timeout * 3 + 1)
         self._session.close()
         print(f"[INFO] AlertSender stopped (delivered={self.delivered}, failed={self.failed}).")
 
-    # --- Public API -------------------------------------------------------
+    # ----------------------------------------
+    # Send Alert
+    # ----------------------------------------
     def send(self, event: RiskEvent) -> None:
-        """Enqueue for asynchronous delivery. If the backend is backed up, drop rather than block."""
+        """Add the event to the queue. If the queue is full, drop it instead of waiting."""
         try:
             self._queue.put_nowait(event)
         except queue.Full:
             print("[WARN] Alert queue full - dropping event (backend slow/down?).")
 
-    # --- Internals --------------------------------------------------------
+    # ----------------------------------------
+    # Background Worker
+    # ----------------------------------------
     def _run(self) -> None:
+        # Take events from the queue and send them one by one.
         while True:
             item = self._queue.get()
             try:
                 if item is self._STOP:
                     return
                 self._post(item)
-            except Exception as exc:                       # never let one bad response kill the worker
+            except Exception as exc:                       # Keep the worker running after an error.
                 self.failed += 1
                 print(f"[WARN] Alert worker error: {exc!r}")
             finally:
@@ -128,11 +143,12 @@ class AlertSender:
         try:
             resp = self._session.post(self.url, json=build_payload(event), timeout=self.timeout)
             if resp.status_code >= 400 and event.snapshot_base64:
-                # e.g. Cloudinary not configured on the backend: keep the EVENT, drop the image.
+                # If the image upload failed, send the alert again without the image.
                 print(f"[WARN] Backend rejected alert with image ({resp.status_code}): {resp.text[:160]} "
                       f"-> retrying without image")
                 resp = self._session.post(self.url, json=build_payload(event, include_image=False),
                                           timeout=self.timeout)
+            # Count the result as delivered or failed.
             if resp.status_code >= 400:
                 self.failed += 1
                 print(f"[WARN] Backend rejected alert ({resp.status_code}): {resp.text[:200]}")
@@ -150,8 +166,11 @@ class AlertSender:
             print(f"[WARN] Alert failed: {exc}")
 
 
+# ========================================
+# Null Alert Sender
+# ========================================
 class NullAlertSender:
-    """No network. Records every event so tests and `--no-api` runs can inspect them."""
+    """Does not use the network. Saves every event so tests can check them."""
 
     def __init__(self):
         self.sent: list[RiskEvent] = []
@@ -163,7 +182,10 @@ class NullAlertSender:
         self.sent.append(event)
 
 
+# ========================================
+# Build Alert Sender
+# ========================================
 def build_alert_sender(enabled: bool | None = None):
-    """Factory: real sender if API is enabled, otherwise a recorder."""
+    """Return a real sender if the API is enabled, otherwise a NullAlertSender."""
     enabled = config.API_ENABLED if enabled is None else enabled
     return AlertSender() if enabled else NullAlertSender()

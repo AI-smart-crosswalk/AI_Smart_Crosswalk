@@ -1,42 +1,56 @@
-# ============================================================
-# SANDBOX - AI service HTTP wrapper.
-# PROVENANCE: whole file = YOSSEF's python/app.py (FastAPI shape), with ONE
-#             change for the merge (marked [CHANGED] below).
-# Run: uvicorn app:app --port 8000
-# ============================================================
+"""
+========================================
+AI Service API
+
+This file runs the HTTP server of the AI service.
+It receives an image path and returns
+the objects detected in the image.
+
+Run: uvicorn app:app --port 8000
+========================================
+"""
 
 import os                                          
 
 from fastapi import FastAPI, HTTPException          
 from pydantic import BaseModel                      
 
-# [CHANGED] his file imported `run_detection` from his detect.py.
-# We import our MERGED detector instead (his flat output + your threshold/allow-list).
-from detector import detect                         # [MERGE] was: from detect import run_detection
+from detector import detect
 
 app = FastAPI()                                     
 
 
-# request body: only the image path is sent (his contract).
+# ========================================
+# Request Body
+# ========================================
+# The client sends only the image path.
 class DetectRequest(BaseModel):
     imagePath: str
 
 
-@app.get("/")                                       
+# ========================================
+# Health Check
+# ========================================
+@app.get("/")
 def health_check():
     return {"status": "running"}
 
 
-@app.post("/detect")                                
+# ========================================
+# Detect Objects
+# ========================================
+@app.post("/detect")
 def detect_endpoint(request: DetectRequest):
+    # Return an error if the image file does not exist.
     if not os.path.exists(request.imagePath):       
         raise HTTPException(status_code=400, detail="Image file not found")
     try:
-        return detect(request.imagePath)            # [CHANGED] was run_detection(...) -> now our detect()
+        return detect(request.imagePath)            # Run the detector on the image.
     except Exception as exc:                        
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-if __name__ == "__main__":                          
+# Start the server when the file is run directly.
+if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
