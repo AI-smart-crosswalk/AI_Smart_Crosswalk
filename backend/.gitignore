@@ -1,62 +1,52 @@
-# ========================
-# 1. Security & Sensitive Info
-# ========================
+# Environment variables and secrets
 .env
 
-# ========================
-# 2. Custom Project Folders
-# ========================
-sprints/
-/sprints
-
-# ========================
-# 3. Dependencies
-# ========================
+# Node.js dependencies
 node_modules/
-/node_modules
 
-# ========================
-# 4. Build & React Frontend Outputs (VITE)
-# ========================
+# Frontend build output
 dist/
 dist-ssr/
 build/
 
-# ========================
-# 5. Logs & Debugging
-# ========================
+# Python virtual environment
+venv/
+ai-service/venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# YOLO model weights
+*.pt
+
+# Local test videos
+*.mp4
+
+# Log and debug files
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# ========================
-# 6. Python Vision "Brain" (Sprint 3)
-# ========================
-vision/venv/
-venv/
-__pycache__/
-*.pyc
-*.pt          # YOLO model weights (auto-downloaded)
-vision/dummy-dataset/  # large local test clips/images (not committed)
-*.mp4
-
-# ========================
-# 7. OS & Editor Clutter
-# ========================
+# Operating system files
 .DS_Store
 Thumbs.db
+
+# IDE and editor settings
 .vscode/
 .idea/
-.claude/
-/.claude
-# ========================
-# 8. Sprint 4 / misc (temp, notes, debug)
-# ========================
-err.txt
-*.log
-SPRINT4_design_decisions.md   # personal design notes (keep out of shared repo)
 
-# Throwaway merge simulation (never commit)
+# Local AI assistant settings
+.claude/
+
+# Local sprint files
+sprints/
+
+# Temporary files
+err.txt
 merge-sandbox/
 
+# Personal project notes
+SPRINT4_design_decisions.md
