@@ -775,7 +775,7 @@ function AdminDashboard() {
                         type="text" 
                         value={infraFormData.city || ''} 
                         onChange={(e) => setInfraFormData({...infraFormData, city: e.target.value})} 
-                        placeholder="למשל: יגל" 
+                        placeholder="למשל:ראשון לציון" 
                         className="w-full p-2 border border-slate-300 rounded text-sm" 
                         required 
                       />
@@ -786,7 +786,7 @@ function AdminDashboard() {
                         type="text" 
                         value={infraFormData.street || ''} 
                         onChange={(e) => setInfraFormData({...infraFormData, street: e.target.value})} 
-                        placeholder="למשל: הלימון 5" 
+                        placeholder="למשל: גבעתי 5" 
                         className="w-full p-2 border border-slate-300 rounded text-sm" 
                       />
                     </div>

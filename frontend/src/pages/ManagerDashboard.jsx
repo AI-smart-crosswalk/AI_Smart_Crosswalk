@@ -173,7 +173,7 @@ useEffect(() => {
         <header className="mb-4 md:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
           <div>
             <h2 className="text-2xl md:text-3xl font-bold text-slate-800">מבט על אזורי - ניתוח בטיחות</h2>
-            <p className="text-sm md:text-base text-slate-500 mt-1">פילוח נתוני AI וביצועי צמתים בשבוע האחרון</p>
+            <p className="text-sm md:text-base text-slate-500 mt-1">פילוח נתונים וביצועי צמתים בשבוע האחרון</p>
           </div>
           <div className="flex gap-3 w-full sm:w-auto print:hidden">
             <button onClick={handleExportPDF} className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded shadow-sm hover:bg-slate-50 transition font-medium w-full sm:w-auto text-sm md:text-base flex justify-center items-center gap-2 cursor-pointer">
@@ -184,7 +184,7 @@ useEffect(() => {
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
             <div className="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-center">
-                <span className="text-slate-500 text-xs md:text-sm font-bold">אירועי AI שטופלו</span>
+                <span className="text-slate-500 text-xs md:text-sm font-bold">אירועים שטופלו</span>
                 <span className="text-2xl md:text-3xl font-black text-slate-800 mt-1">{dashboardData.stats.totalAlerts}</span>
             </div>
             <div className="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-center">
@@ -250,7 +250,7 @@ useEffect(() => {
               </div>
               
               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-[22rem] flex flex-col lg:col-span-2">
-                  <h3 className="font-bold text-slate-700 mb-2 text-sm md:text-base">פילוח חומרת אירועים (מבוסס אחוזי סיכון ה-AI)</h3>
+                  <h3 className="font-bold text-slate-700 mb-2 text-sm md:text-base">פילוח חומרת אירועים </h3>
                   <div className="flex-1 w-full flex justify-center items-center">
                       <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
