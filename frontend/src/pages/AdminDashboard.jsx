@@ -760,7 +760,6 @@ function AdminDashboard() {
                   <select value={infraFormData.status || 'active'} onChange={(e) => setInfraFormData({...infraFormData, status: e.target.value})} className="w-full p-2 border border-slate-300 rounded text-sm outline-none focus:border-blue-500 bg-white">
                     <option value="active">פעיל ותקין</option>
                     <option value="error">תקלה (Error)</option>
-                    <option value="suspended">מושבת יזום (Suspended)</option>
                   </select>
                 </div>
               </div>
