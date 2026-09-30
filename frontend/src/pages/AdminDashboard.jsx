@@ -359,7 +359,6 @@ function AdminDashboard() {
   const renderStatusBadge = (status) => {
     if (status === 'active') return <span className="text-green-700 font-bold text-xs bg-green-100 px-2 py-1 rounded border border-green-300">פעיל תקין</span>;
     if (status === 'error') return <span className="text-red-700 font-bold text-xs bg-red-100 px-2 py-1 rounded border border-red-300">תקלה ⚠️</span>;
-    if (status === 'suspended') return <span className="text-orange-700 font-bold text-xs bg-orange-100 px-2 py-1 rounded border border-orange-300">מושבת יזום 🛑</span>;
     return null;
   };
 
