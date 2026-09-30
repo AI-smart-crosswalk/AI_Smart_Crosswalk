@@ -1,0 +1,168 @@
+{
+  "crosswalks": [
+    {
+      "_id": "66f1a0000000000000000001",
+      "name": "צומת הרצל",
+      "status": "active",
+      "city": "חולון",
+      "street": "הרצל 45",
+      "lat": 32.0158,
+      "lng": 34.7874,
+      "isSchoolZone": false
+    },
+    {
+      "_id": "66f1a0000000000000000002",
+      "name": "צומת אבן גבירול",
+      "status": "active",
+      "city": "תל אביב",
+      "street": "אבן גבירול 10",
+      "lat": 32.0684,
+      "lng": 34.7805,
+      "isSchoolZone": false
+    },
+    {
+      "_id": "66f1a0000000000000000003",
+      "name": "צומת קפלן",
+      "status": "active",
+      "city": "תל אביב",
+      "street": "קפלן 1",
+      "lat": 32.0735,
+      "lng": 34.788,
+      "isSchoolZone": false
+    },
+    {
+      "_id": "66f1a0000000000000000004",
+      "name": "בית ספר היובל",
+      "status": "active",
+      "city": "חולון",
+      "street": "סוקולוב 20",
+      "lat": 32.017,
+      "lng": 34.779,
+      "isSchoolZone": true
+    },
+    {
+      "_id": "66f1a0000000000000000005",
+      "name": "צומת רוטשילד",
+      "status": "error",
+      "city": "ראשון לציון",
+      "street": "רוטשילד 50",
+      "lat": 31.964,
+      "lng": 34.804,
+      "isSchoolZone": false
+    },
+    {
+      "_id": "66f1a0000000000000000006",
+      "name": "בית ספר אלון",
+      "status": "active",
+      "city": "רמת גן",
+      "street": "ביאליק 30",
+      "lat": 32.0823,
+      "lng": 34.8141,
+      "isSchoolZone": true
+    }
+  ],
+  "cameras": [
+    {
+      "_id": "66f1b0000000000000000001",
+      "name": "מצלמה צפונית - הרצל",
+      "status": "active",
+      "ip": "192.168.1.10",
+      "type": "PTZ (ממונעת)",
+      "junctionId": "66f1a0000000000000000001"
+    },
+    {
+      "_id": "66f1b0000000000000000002",
+      "name": "מצלמה דרומית - הרצל",
+      "status": "error",
+      "ip": "192.168.1.11",
+      "type": "LPR (זיהוי לוחיות)",
+      "junctionId": "66f1a0000000000000000001"
+    },
+    {
+      "_id": "66f1b0000000000000000003",
+      "name": "מצלמה ראשית - אבן גבירול",
+      "status": "active",
+      "ip": "192.168.2.10",
+      "type": "Thermal (תרמית)",
+      "junctionId": "66f1a0000000000000000002"
+    },
+    {
+      "_id": "66f1b0000000000000000004",
+      "name": "מצלמה ראשית - צומת קפלן",
+      "status": "active",
+      "ip": "192.168.3.10",
+      "type": "PTZ (ממונעת)",
+      "junctionId": "66f1a0000000000000000003"
+    },
+    {
+      "_id": "66f1b0000000000000000005",
+      "name": "מצלמה ראשית - בית ספר היובל",
+      "status": "active",
+      "ip": "192.168.4.10",
+      "type": "PTZ (ממונעת)",
+      "junctionId": "66f1a0000000000000000004"
+    },
+    {
+      "_id": "66f1b0000000000000000006",
+      "name": "מצלמה ראשית - צומת רוטשילד",
+      "status": "active",
+      "ip": "192.168.5.10",
+      "type": "PTZ (ממונעת)",
+      "junctionId": "66f1a0000000000000000005"
+    },
+    {
+      "_id": "66f1b0000000000000000007",
+      "name": "מצלמה ראשית - בית ספר אלון",
+      "status": "active",
+      "ip": "192.168.6.10",
+      "type": "PTZ (ממונעת)",
+      "junctionId": "66f1a0000000000000000006"
+    }
+  ],
+  "leds": [
+    {
+      "_id": "66f1c0000000000000000001",
+      "name": "פס תאורה מערבי - הרצל",
+      "status": "active",
+      "color": "ירוק",
+      "junctionId": "66f1a0000000000000000001"
+    },
+    {
+      "_id": "66f1c0000000000000000002",
+      "name": "פס תאורה - אבן גבירול",
+      "status": "suspended",
+      "color": "כתום",
+      "junctionId": "66f1a0000000000000000002"
+    }
+  ],
+  "alerts": [
+    {
+      "_id": "alert_001",
+      "cameraId": "66f1b0000000000000000001",
+      "crosswalkId": "66f1a0000000000000000001",
+      "location": "הרצל 45, חולון",
+      "areaId": "area_holon_01",
+      "areaName": "מרכז העיר",
+      "severity": "High",
+      "description": "הולך רגל זוהה על הכביש באור אדום",
+      "personType": "adult",
+      "distanceFromCrosswalk": 0.5,
+      "imageUrl": "https://dummyimage.com/600x400/000/fff&text=Pedestrian+Danger",
+      "timestamp": "2026-06-03T08:30:00Z"
+    },
+    {
+      "_id": "alert_002",
+      "cameraId": "66f1b0000000000000000003",
+      "crosswalkId": "66f1a0000000000000000002",
+      "location": "אבן גבירול 10, תל אביב",
+      "areaId": "area_tlv_03",
+      "areaName": "צפון תל אביב",
+      "severity": "Medium",
+      "description": "רכב נעצר על קו מעבר החצייה",
+      "personType": "unknown",
+      "distanceFromCrosswalk": 0,
+      "imageUrl": "https://dummyimage.com/600x400/000/fff&text=Car+on+Crosswalk",
+      "timestamp": "2026-06-03T11:15:00Z"
+    }
+  ]
+}

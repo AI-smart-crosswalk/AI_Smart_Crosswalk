@@ -1,0 +1,14 @@
+# PROVENANCE: [RACHE] your requirements. [LIEL] added fastapi + uvicorn (HTTP service) for Sprint 4.
+# ============================================================
+# SANDBOX FILE - SETTLED.
+# ============================================================
+
+# Smart City Crosswalk System - AI service (Sprint 3 detector + Sprint 4 HTTP service + video analysis)
+# Python 3.10+ recommended
+
+ultralytics==8.2.103   # YOLOv8 object detection (pulls in torch/torchvision)
+opencv-python==4.10.0.84  # Image loading (width/height), ROI geometry
+requests==2.32.3          # Backend API communication
+numpy==1.26.4             # Array / geometry helpers
+fastapi==0.115.6          # HTTP service (app.py): GET / health, POST /detect
+uvicorn==0.34.0           # ASGI server that runs app.py
