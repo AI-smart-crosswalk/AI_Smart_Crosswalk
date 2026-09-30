@@ -4,13 +4,19 @@ This file defines all HTTP endpoints
 for LED devices.
 
 These endpoints allow creating,
-retrieving and updating
+retrieving, updating and deleting
 LED information.
 ========================================
 */
 
 import express from 'express';
-import { createLed, fetchAllLeds, fetchLedsByJunction, updateLed } from '../services/ledService.js';
+import {
+    createLed,
+    fetchAllLeds,
+    fetchLedsByJunction,
+    updateLed,
+    deleteLed
+} from '../services/ledService.js';
 import authenticate from '../middleware/authenticationMiddleware.js';
 import authorize from '../middleware/authorizationMiddleware.js';
 import { emitInfra } from '../config/socket.js';
@@ -115,6 +121,37 @@ router.put('/:id', authenticate, authorize('Admin', 'Technician'), async (req, r
     } catch (error) {
 
         // Return an error if the update failed.
+        res.status(400).json({ message: error.message });
+
+    }
+
+});
+
+/*
+========================================
+Delete an existing LED.
+
+Accessible only to Admin users.
+========================================
+*/
+router.delete('/:id', authenticate, authorize('Admin'), async (req, res) => {
+
+    try {
+
+        // Delete the selected LED.
+        const deleted = await deleteLed(req.params.id);
+
+        // Return an error if the LED does not exist.
+        if (!deleted) {
+            return res.status(404).json({ message: 'LED not found' });
+        }
+
+        // Return a successful response.
+        res.status(200).json({ message: 'LED deleted successfully' });
+
+    } catch (error) {
+
+        // Return an error if the delete failed.
         res.status(400).json({ message: error.message });
 
     }

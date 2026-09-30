@@ -3,8 +3,8 @@
 Camera Service
 
 This file handles camera operations.
-It creates, retrieves, and updates
-cameras in the SmartWalk system.
+It creates, retrieves, updates,
+and deletes cameras in the SmartWalk system.
 ========================================
 */
 
@@ -53,4 +53,15 @@ export const updateCamera = async (id, updates) => {
         { ...updates, lastUpdated: Date.now() },
         { returnDocument: 'after', runValidators: true }
     );
+};
+
+/*
+========================================
+Delete Camera
+========================================
+*/
+export const deleteCamera = async (id) => {
+    // Delete the selected camera.
+    // Returns null if the camera was not found.
+    return await Camera.findByIdAndDelete(id);
 };

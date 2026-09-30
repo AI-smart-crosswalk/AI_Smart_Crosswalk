@@ -3,8 +3,8 @@
 LED Service
 
 This file handles LED operations.
-It creates, retrieves, and updates
-LEDs in the SmartWalk system.
+It creates, retrieves, updates,
+and deletes LEDs in the SmartWalk system.
 ========================================
 */
 
@@ -53,4 +53,15 @@ export const updateLed = async (id, updates) => {
         { ...updates, lastUpdated: Date.now() },
         { returnDocument: 'after', runValidators: true }
     );
+};
+
+/*
+========================================
+Delete LED
+========================================
+*/
+export const deleteLed = async (id) => {
+    // Delete the selected LED.
+    // Returns null if the LED was not found.
+    return await LED.findByIdAndDelete(id);
 };

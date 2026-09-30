@@ -2,10 +2,9 @@
 ========================================
 SmartWalk Backend Entry Point
 
-
 This file starts the SmartWalk backend server.
 It creates the HTTP server, initializes Socket.io,
-connects to MongoDB, starts the live alert listener,
+connects to MongoDB, starts the live database listeners,
 and begins listening for incoming requests.
 
 Responsibilities:
@@ -15,6 +14,7 @@ Responsibilities:
 - Initialize Socket.io.
 - Connect to MongoDB.
 - Start the alert Change Stream.
+- Start the user Change Stream.
 - Start listening for incoming requests.
 
 The Express configuration itself
@@ -35,10 +35,11 @@ import app from './app.js';
 // Import the MongoDB connection function.
 import connectDB from './config/db.js';
 
-// Import Socket.io initialization and alert monitoring.
+// Import Socket.io initialization and database monitoring.
 import {
     initSocket,
-    watchAlerts
+    watchAlerts,
+    watchUsers
 } from './config/socket.js';
 
 
@@ -75,9 +76,11 @@ Connect to MongoDB
 connectDB().then(
     () => {
 
-        // Start watching the Alerts collection
-        // after the database connection is ready.
+        // Start watching the Alerts collection.
         watchAlerts();
+
+        // Start watching the Users collection.
+        watchUsers();
 
     }
 );

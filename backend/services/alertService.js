@@ -57,17 +57,49 @@ export const updateAlert = async (id, updates) => {
 
     // Find the alert in the database.
     const before = await Alert.findById(id).select('isResolved');
+
     // Return an empty result if the alert was not found.
-    if (!before) return { alert: null, justResolved: false };
+    if (!before) {
+        return {
+            alert: null,
+            justResolved: false,
+            justReopened: false
+        };
+    }
 
-    // Check if the alert is being resolved right now.
-    const justResolved = changes.isResolved === true && !before.isResolved;
-    if (justResolved) changes.resolvedAt = new Date();
-    if (changes.isResolved === false) changes.resolvedAt = null;
+    // Detect a real change from false to true.
+    const justResolved =
+        changes.isResolved === true &&
+        before.isResolved === false;
 
-    const alert = await Alert.findByIdAndUpdate(id, changes, {
-        returnDocument: 'after', // Return the updated alert.
-        runValidators: true,     // Check the values against the schema.
-    });
-    return { alert, justResolved };
+    // Detect a real change from true to false.
+    const justReopened =
+        changes.isResolved === false &&
+        before.isResolved === true;
+
+    // Set resolvedAt only when the alert becomes resolved.
+    if (justResolved) {
+        changes.resolvedAt = new Date();
+    }
+
+    // Clear resolvedAt when the alert is reopened.
+    if (justReopened) {
+        changes.resolvedAt = null;
+    }
+
+    // Update the alert in the database.
+    const alert = await Alert.findByIdAndUpdate(
+        id,
+        changes,
+        {
+            returnDocument: 'after',
+            runValidators: true
+        }
+    );
+
+    return {
+        alert,
+        justResolved,
+        justReopened
+    };
 };

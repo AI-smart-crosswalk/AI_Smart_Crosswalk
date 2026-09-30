@@ -1,4 +1,3 @@
-
 /*
 ========================================
 Socket Configuration
@@ -8,13 +7,16 @@ Responsibilities:
 - Manage frontend socket connections.
 - Send infrastructure updates.
 - Send alert resolution updates.
+- Send alert reopen updates.
 - Watch MongoDB for alert changes.
-- Send live alert updates to the frontend.
+- Watch MongoDB for user changes.
+- Send live updates to the frontend.
 ========================================
 */
 
 import { Server } from 'socket.io';
 import Alert from '../models/alert.js';
+import User from '../models/user.js';
 
 let io = null;
 
@@ -152,6 +154,40 @@ export const emitAlertResolved = (alert) => {
 
 /*
 ========================================
+Emit Alert Reopened
+========================================
+*/
+
+export const emitAlertReopened = (alert) => {
+
+    try {
+
+        // Notify connected clients that an alert was reopened.
+        getIO().emit(
+            'alert_reopened',
+            {
+                _id: alert._id,
+                crosswalkId: alert.crosswalkId
+            }
+        );
+
+        console.log(
+            `Live: emitted alert_reopened ${alert._id}`
+        );
+
+    } catch (err) {
+
+        console.error(
+            `Failed to emit alert_reopened: ${err.message}`
+        );
+
+    }
+
+};
+
+
+/*
+========================================
 Watch Alert Changes
 ========================================
 */
@@ -168,16 +204,13 @@ export const watchAlerts = () => {
             }
         );
 
-
         // Handle alert database changes.
         changeStream.on(
             'change',
             (change) => {
 
                 // Send newly created alerts to all connected clients.
-                if (
-                    change.operationType === 'insert'
-                ) {
+                if (change.operationType === 'insert') {
 
                     getIO().emit(
                         'newAlert',
@@ -189,7 +222,6 @@ export const watchAlerts = () => {
                     );
 
                 }
-
 
                 // Send updated alerts to all connected clients.
                 else if (
@@ -211,7 +243,6 @@ export const watchAlerts = () => {
             }
         );
 
-
         // Handle MongoDB Change Stream errors.
         changeStream.on(
             'error',
@@ -224,7 +255,6 @@ export const watchAlerts = () => {
             }
         );
 
-
         console.log(
             'Change stream on Alerts collection is active.'
         );
@@ -233,6 +263,107 @@ export const watchAlerts = () => {
 
         console.error(
             `Failed to start change stream: ${err.message}`
+        );
+
+    }
+
+};
+
+
+/*
+========================================
+Watch User Changes
+========================================
+*/
+
+export const watchUsers = () => {
+
+    try {
+
+        // Watch the Users collection for database changes.
+        const changeStream = User.watch(
+            [],
+            {
+                fullDocument: 'updateLookup'
+            }
+        );
+
+        // Handle user database changes.
+        changeStream.on(
+            'change',
+            (change) => {
+
+                // Send newly created users to all connected clients.
+                if (change.operationType === 'insert') {
+
+                    getIO().emit(
+                        'user_added',
+                        change.fullDocument
+                    );
+
+                    console.log(
+                        `Live: emitted user_added ${change.fullDocument?._id}`
+                    );
+
+                }
+
+                // Send updated users to all connected clients.
+                else if (
+                    change.operationType === 'update' ||
+                    change.operationType === 'replace'
+                ) {
+
+                    getIO().emit(
+                        'user_updated',
+                        change.fullDocument
+                    );
+
+                    console.log(
+                        `Live: emitted user_updated ${change.fullDocument?._id}`
+                    );
+
+                }
+
+                // Send deleted user ID to all connected clients.
+                else if (change.operationType === 'delete') {
+
+                    const deletedUserId =
+                        change.documentKey._id.toString();
+
+                    getIO().emit(
+                        'user_deleted',
+                        deletedUserId
+                    );
+
+                    console.log(
+                        `Live: emitted user_deleted ${deletedUserId}`
+                    );
+
+                }
+
+            }
+        );
+
+        // Handle MongoDB Change Stream errors.
+        changeStream.on(
+            'error',
+            (err) => {
+
+                console.error(
+                    `User change stream error: ${err.message}`
+                );
+
+            }
+        );
+
+        console.log(
+            'Change stream on Users collection is active.'
+        );
+
+    } catch (err) {
+
+        console.error(
+            `Failed to start user change stream: ${err.message}`
         );
 
     }

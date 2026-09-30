@@ -12,54 +12,121 @@ contact details, last login time, and creation time.
 Notes:
 - Users are created only by an Admin
   (there is no public registration).
-- Login is by username, not email.
+- Login is performed using the username, not email.
 - idNumber, phone, email and address are optional
   and not unique - see the comment on email below.
 - Passwords are stored hashed, never in plain text.
 ========================================
 */
+
 import mongoose from "mongoose";
+
 
 /*
 ========================================
 User Schema
 ========================================
 */
+
 const userSchema = new mongoose.Schema({
+
     // User code (a UUID created by the server).
-    id: { type: String, required: true },
+    id: {
+        type: String,
+        required: true
+    },
 
-    // Full name, set by the Admin. Extra spaces are trimmed.
-    name: { type: String, required: true, trim: true },
+    // Full name.
+    name: {
+        type: String,
+        required: true,
+        trim: true
+    },
 
-    // Login name. Must be unique (no two users with the same username).
-    username: { type: String, required: true, unique: true },
+    // Login name.
+    username: {
+        type: String,
+        required: true,
+        unique: true
+    },
 
     // Optional contact/identity details, set by the Admin. Not unique on
     // purpose - a unique index on email is what broke user creation before,
     // since Mongo treats every missing field as the same null value.
-    idNumber: { type: String, default: "", trim: true },
-    phone: { type: String, default: "", trim: true },
-    email: { type: String, default: "", trim: true, lowercase: true },
-    address: { type: String, default: "", trim: true },
+    idNumber: {
+        type: String,
+        default: "",
+        trim: true
+    },
+
+    // User email address.
+    email: {
+        type: String,
+        default: "",
+        trim: true,
+        lowercase: true
+    },
+
+    // User phone number.
+    phone: {
+        type: String,
+        default: "",
+        trim: true
+    },
+
+    // User home address.
+    address: {
+        type: String,
+        default: "",
+        trim: true
+    },
 
     // Hashed password (bcrypt). The plain password is never saved.
-    passwordHash: { type: String, required: true },
+    passwordHash: {
+        type: String,
+        required: true
+    },
 
-    // Permission level. The frontend opens a dashboard based on this role.
-    role: { type: String, enum: ['Admin', 'Manager', 'Dispatcher', 'Technician']},
+    // Permission level.
+    role: {
+        type: String,
+        enum: [
+            'Admin',
+            'Manager',
+            'Dispatcher',
+            'Technician'
+        ]
+    },
 
-    // Account state. Lets an Admin suspend a user without deleting them.
-    // Suspended users cannot log in.
-    status: { type: String, enum: ['active', 'suspended'], default: 'active' },
+    // Account state.
+    status: {
+        type: String,
+        enum: [
+            'active',
+            'suspended'
+        ],
+        default: 'active'
+    },
 
-    // Last login time. null = the user has never logged in yet.
-    lastLogin: { type: Date, default: null },
+    // Last login time.
+    lastLogin: {
+        type: Date,
+        default: null
+    },
 
     // Account creation time.
-    createdAt: { type: Date, default: Date.now }
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
+
 });
 
+
 // Create the User model from the schema.
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model(
+    "User",
+    userSchema
+);
+
 export default User;
