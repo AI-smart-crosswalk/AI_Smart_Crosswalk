@@ -1,216 +1,286 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import crosswalksData from '../data/crosswalks.json';
+import { io } from 'socket.io-client'; 
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell, LineChart, Line 
+} from 'recharts';
 
 function ManagerDashboard() {
   const navigate = useNavigate();
+  
+  const [intersectionFilter, setIntersectionFilter] = useState('top5');
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // הסטייט החדש - מחזיק את כל הנתונים המחושבים שהבאקאנד שולח
+  const [dashboardData, setDashboardData] = useState({
+    stats: { totalAlerts: 0, highRisk: 0, activeCrosswalks: 0, totalCrosswalks: 0, avgResponseTime: 0 },
+    intersections: [],
+    weekly: [],
+    severity: []
+  });
 
-  const [dispatchersLoad] = useState([
-    { id: 1, name: 'דניאל כהן', pending: 8, inProgress: 2, maxCapacity: 15, avgResponseTime: '2m 15s' },
-    { id: 2, name: 'רונית לוי', pending: 2, inProgress: 4, maxCapacity: 15, avgResponseTime: '1m 05s' },
-    { id: 3, name: 'יעל שגיא (גיבוי)', pending: 0, inProgress: 1, maxCapacity: 10, avgResponseTime: '0m 45s' },
-  ]);
+  // פונקציית המשיכה מהשרת הופרדה כדי שנוכל לקרוא לה גם כשמשתנה פילטר וגם כשמתקבל סוקט
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const token = localStorage.getItem('token');
+      const headers = { 'Authorization': `Bearer ${token}` };
+
+      // שולחים בקשה לראוט האנליטיקה החדש של יוסף, ומעבירים לו את הפילטר הנוכחי
+      const response = await fetch(`${apiUrl}/analytics/dashboard?filter=${intersectionFilter}`, { headers });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setDashboardData(data);
+      }
+    } catch (err) {
+      console.error("Error fetching dashboard data:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  
+useEffect(() => {
+
+  // Initial request:
+  // Get the current dashboard data from the database.
+  fetchDashboardData();
+
+  // Connect to the backend Socket.io server.
+  const socketUrl =
+    import.meta.env.VITE_API_URL.replace('/api', '');
+
+  const socket = io(socketUrl);
+
+
+  // Increase the counter when an alert becomes resolved.
+  socket.on('alert_resolved', () => {
+
+    setDashboardData((prev) => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        totalAlerts: prev.stats.totalAlerts + 1
+      }
+    }));
+
+  });
+
+
+  // Decrease the counter when a resolved alert is reopened.
+  socket.on('alert_reopened', () => {
+
+    setDashboardData((prev) => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        totalAlerts: Math.max(
+          0,
+          prev.stats.totalAlerts - 1
+        )
+      }
+    }));
+
+  });
+
+
+  // Refresh dashboard data when a crosswalk is added.
+  socket.on('infra_added', (data) => {
+
+    if (data.type === 'crosswalk') {
+      fetchDashboardData();
+    }
+
+  });
+
+
+  // Refresh dashboard data when a crosswalk is updated.
+  socket.on('infra_updated', (data) => {
+
+    if (data.type === 'crosswalk') {
+      fetchDashboardData();
+    }
+
+  });
+
+
+  // Refresh dashboard data when a crosswalk is deleted.
+  socket.on('infra_deleted', (data) => {
+
+    if (data.type === 'crosswalk') {
+      fetchDashboardData();
+    }
+
+  });
+
+
+  // Disconnect when leaving the page.
+  return () => {
+
+    socket.off('alert_resolved');
+    socket.off('alert_reopened');
+
+    socket.off('infra_added');
+    socket.off('infra_updated');
+    socket.off('infra_deleted');
+
+    socket.disconnect();
+
+  };
+
+}, [intersectionFilter]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/');
   };
 
-  // פונקציות עזר סטטיסטיות למסך הניהול
-  const totalCrosswalks = crosswalksData.length;
-  const activeCameras = crosswalksData.filter(cw => cw.cameraStatus === 'online').length;
-  const cameraHealthPercent = Math.round((activeCameras / totalCrosswalks) * 100);
-
-  const getLoadColor = (pending, max) => {
-    const ratio = pending / max;
-    if (ratio >= 0.8) return 'bg-red-500';
-    if (ratio >= 0.5) return 'bg-yellow-500';
-    return 'bg-green-500';
+  const handleExportPDF = () => {
+    window.print();
   };
 
+  const severityColors = ['#ef4444', '#f59e0b', '#3b82f6'];
+
   return (
-    <div className="flex h-screen bg-slate-100 font-sans" dir="rtl">
+    <div className="flex flex-col md:flex-row h-screen bg-slate-100 font-sans" dir="rtl">
       
-      {/* תפריט צד ניהולי */}
-      <aside className="w-64 bg-blue-900 text-white p-6 flex flex-col justify-between shadow-xl z-10 shrink-0">
+      <aside className="w-full md:w-64 bg-slate-900 text-white p-4 md:p-6 flex flex-col md:justify-between shadow-xl z-20 shrink-0 md:h-full print:hidden">
         <div>
-          <h1 className="text-2xl font-bold mb-8 text-center border-b border-blue-800 pb-4">
-            SafeCross 🚦
+          <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-8 text-center border-b border-slate-700 pb-4">
+            SafeCross 🚦<br/><span className="text-xs md:text-sm font-normal text-slate-400">ניהול אזורי</span>
           </h1>
-          <nav className="flex flex-col gap-3 text-blue-200">
-            <button className="text-right text-white bg-blue-800 p-3 rounded font-medium transition shadow-sm border border-blue-700">
-              📊 דשבורד מנהל אזור
-            </button>
-            <button className="text-right hover:text-white hover:bg-blue-800 p-3 rounded transition">
-              📈 דוחות סטטיסטיים
-            </button>
-            <button className="text-right hover:text-white hover:bg-blue-800 p-3 rounded transition">
-              👥 ניהול צוות מוקד
+          <nav className="flex flex-row md:flex-col gap-2 md:gap-3 text-slate-300 overflow-x-auto pb-2 md:pb-0 whitespace-nowrap">
+            <button className="text-right hover:text-white bg-slate-800 px-4 py-2 md:p-3 rounded font-medium transition shadow-sm border border-slate-700 text-blue-400 text-sm md:text-base">
+              📊 לוח בקרה ראשי
             </button>
           </nav>
         </div>
         
-        <div className="flex flex-col gap-3">
-            <div className="bg-blue-800 p-3 rounded text-sm text-center border border-blue-700">
-                👤 מחובר כמנהל
+        <div className="flex flex-col gap-3 mt-4 md:mt-0">
+            <div className="bg-slate-800 px-3 py-2 md:p-3 rounded text-xs md:text-sm text-center border border-slate-700">
+              מנהל מחובר: אזור מרכז
             </div>
-            <button 
-                onClick={handleLogout}
-                className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded transition font-bold shadow-md"
-            >
+            <button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded transition font-bold shadow-md text-sm md:text-base">
                 התנתק
             </button>
         </div>
       </aside>
 
-      {/* אזור תוכן מרכזי */}
-      <main className="flex-1 p-6 flex flex-col overflow-y-auto">
-        
-        <header className="mb-6 flex justify-between items-center shrink-0">
+      <main className="flex-1 p-4 md:p-6 flex flex-col overflow-y-auto w-full">
+        <header className="mb-4 md:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
           <div>
-            <h2 className="text-3xl font-bold text-slate-800">תמונת מצב אזורית (Manager View)</h2>
-            <p className="text-slate-500 mt-1">ריכוז מדדי בטיחות, ביצועי צוות וסטטוס תשתיות בעיר</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-800">מבט על אזורי - ניתוח בטיחות</h2>
+            <p className="text-sm md:text-base text-slate-500 mt-1">פילוח נתונים וביצועי צמתים בשבוע האחרון</p>
+          </div>
+          <div className="flex gap-3 w-full sm:w-auto print:hidden">
+            <button onClick={handleExportPDF} className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded shadow-sm hover:bg-slate-50 transition font-medium w-full sm:w-auto text-sm md:text-base flex justify-center items-center gap-2 cursor-pointer">
+                יצא דוח PDF 📥
+            </button>
           </div>
         </header>
 
-        <div className="flex flex-col gap-6 flex-1">
-            
-          {/* שורת כרטיסיות KPI */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-r-4 border-r-blue-500">
-                  <div className="text-slate-500 text-sm font-bold mb-1">סה"כ צמתים מנוטרים</div>
-                  <div className="text-3xl font-black text-slate-800">{totalCrosswalks}</div>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-r-4 border-r-red-500">
-                  <div className="text-slate-500 text-sm font-bold mb-1">אירועים קריטיים (היום)</div>
-                  <div className="text-3xl font-black text-slate-800">14</div>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-r-4 border-r-yellow-500">
-                  <div className="text-slate-500 text-sm font-bold mb-1">אירועים פתוחים (העיר)</div>
-                  <div className="text-3xl font-black text-slate-800">10</div>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 border-r-4 border-r-green-500">
-                  <div className="text-slate-500 text-sm font-bold mb-1">תקינות מערכות (Uptime)</div>
-                  <div className="text-3xl font-black text-slate-800">{cameraHealthPercent}%</div>
-              </div>
-          </div>
-
-          {/* בקרת מוקדנים + התפלגות אירועים */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 shrink-0">
-              
-              {/* בקרת מוקדנים (עומס אירועים וזמן תגובה) */}
-              <div className="bg-white rounded-xl shadow-md border border-slate-200 p-5 flex flex-col">
-                  <h3 className="text-lg font-bold text-slate-800 mb-4 flex justify-between items-center border-b pb-2">
-                      <span>🎧 עומס אירועים - צוות מוקד</span>
-                      <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded">זמן אמת</span>
-                  </h3>
-                  
-                  <div className="flex flex-col gap-4">
-                      {dispatchersLoad.map(dispatcher => (
-                          <div key={dispatcher.id} className="flex flex-col gap-1">
-                              <div className="flex justify-between items-center text-sm">
-                                  <span className="font-bold text-slate-700">{dispatcher.name}</span>
-                                  <div className="flex items-center gap-3 text-slate-500 font-mono text-xs">
-                                      <span className="bg-slate-50 px-2 py-1 rounded border border-slate-200">⏱️ ממוצע: {dispatcher.avgResponseTime}</span>
-                                      <span>{dispatcher.pending} ממתינים | {dispatcher.inProgress} בטיפול</span>
-                                  </div>
-                              </div>
-                              {/* פס התקדמות העומס */}
-                              <div className="w-full bg-slate-100 rounded-full h-2.5 border border-slate-200 overflow-hidden mt-1">
-                                  <div 
-                                      className={`h-2.5 rounded-full transition-all ${getLoadColor(dispatcher.pending, dispatcher.maxCapacity)}`} 
-                                      style={{ width: `${(dispatcher.pending / dispatcher.maxCapacity) * 100}%` }}
-                                  ></div>
-                              </div>
-                              {dispatcher.pending >= dispatcher.maxCapacity * 0.8 && (
-                                  <span className="text-xs text-red-500 font-bold mt-1">⚠️ עומס חריג - שקול ניתוב אירועים למוקדן אחר</span>
-                              )}
-                          </div>
-                      ))}
-                  </div>
-              </div>
-
-              {/* התפלגות התרעות חודשית - מעודכן לעיר חכמה */}
-              <div className="bg-white rounded-xl shadow-md border border-slate-200 p-5 flex flex-col">
-                  <h3 className="text-lg font-bold text-slate-800 mb-4 border-b pb-2">📊 סיווג אירועים (עומסים ותשתיות)</h3>
-                  
-                  <div className="flex flex-col gap-4 justify-center flex-1">
-                      <div className="flex items-center gap-3">
-                          <span className="w-32 text-sm font-bold text-slate-600">קריטי (עומס כבד)</span>
-                          <div className="flex-1 bg-slate-100 rounded-r-md h-6 overflow-hidden flex">
-                              <div className="bg-red-500 h-full w-[45%] text-xs text-white flex items-center px-2">124 מקרים</div>
-                          </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                          <span className="w-32 text-sm font-bold text-slate-600">בינוני (מכשולים)</span>
-                          <div className="flex-1 bg-slate-100 rounded-r-md h-6 overflow-hidden flex">
-                              <div className="bg-orange-400 h-full w-[35%] text-xs text-white flex items-center px-2">95 מקרים</div>
-                          </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                          <span className="w-32 text-sm font-bold text-slate-600">נמוך (תקלות תשתית)</span>
-                          <div className="flex-1 bg-slate-100 rounded-r-md h-6 overflow-hidden flex">
-                              <div className="bg-blue-400 h-full w-[20%] text-xs text-white flex items-center px-2">42 מקרים</div>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-
-          </div>
-
-          {/* טבלת צמתים מרכזית בראייה אזורית */}
-          <div className="bg-white rounded-xl shadow-md border border-slate-200 flex flex-col">
-              <div className="bg-slate-50 p-4 border-b border-slate-200 font-bold text-slate-700 flex justify-between items-center rounded-t-xl">
-                  <span>📍 בקרת תקינות רשת הצמתים</span>
-              </div>
-              
-              <div className="overflow-x-auto">
-                  <table className="w-full text-right">
-                      <thead className="bg-white border-b-2 border-slate-200 text-slate-500 text-sm">
-                          <tr>
-                              <th className="p-4 font-bold">מזהה ושם צומת</th>
-                              <th className="p-4 font-bold">אזור (Area)</th>
-                              <th className="p-4 font-bold">תשתיות עובדות</th>
-                              <th className="p-4 font-bold">סטטוס תפעולי</th>
-                              <th className="p-4 font-bold">פעולות ניהול</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                          {crosswalksData.map((cw) => (
-                              <tr key={cw._id} className="hover:bg-slate-50 transition">
-                                  <td className="p-4">
-                                      <div className="font-bold text-slate-800">{cw.location}</div>
-                                      <div className="text-xs text-slate-400 font-mono">{cw._id}</div>
-                                  </td>
-                                  <td className="p-4 text-sm font-medium text-slate-700">{cw.areaname}</td>
-                                  <td className="p-4">
-                                      <div className="flex flex-col gap-1 text-xs">
-                                          <span className={`${cw.cameraStatus === 'online' ? 'text-green-600' : 'text-red-500'}`}>
-                                              {cw.cameraStatus === 'online' ? '🟢 מצלמות באוויר' : '🔴 נתק מצלמות'}
-                                          </span>
-                                      </div>
-                                  </td>
-                                  <td className="p-4">
-                                      {cw.status === 'active' && <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold border border-green-200">תקין (שגרה)</span>}
-                                      {cw.status === 'warning' && <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs font-bold border border-orange-200">דורש תשומת לב</span>}
-                                      {cw.status === 'inactive' && <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold border border-red-200">מוקפא / תקול</span>}
-                                  </td>
-                                  <td className="p-4">
-                                      <button 
-                                          onClick={() => navigate(`/crosswalk/${cw._id}`)}
-                                          className="text-blue-600 hover:text-blue-800 font-bold text-sm underline"
-                                      >
-                                          פתח תיק צומת
-                                      </button>
-                                  </td>
-                              </tr>
-                          ))}
-                      </tbody>
-                  </table>
-              </div>
-          </div>
-
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
+            <div className="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-center">
+                <span className="text-slate-500 text-xs md:text-sm font-bold">אירועים שטופלו</span>
+                <span className="text-2xl md:text-3xl font-black text-slate-800 mt-1">{dashboardData.stats.totalAlerts}</span>
+            </div>
+            <div className="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-center">
+                <span className="text-slate-500 text-xs md:text-sm font-bold">צמתים תקינים</span>
+                <span className="text-2xl md:text-3xl font-black text-blue-600 mt-1">{dashboardData.stats.activeCrosswalks} / {dashboardData.stats.totalCrosswalks}</span>
+            </div>
         </div>
+
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center flex-1 py-20">
+            <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin mb-3"></div>
+            <span className="text-slate-500 text-sm font-medium">השרת מבצע חישובים ומכין נתונים...</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 pb-6">
+              
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-[22rem] flex flex-col">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                      <h3 className="font-bold text-slate-700 text-sm md:text-base">
+                          {intersectionFilter === 'top5' ? '5 הצמתים עם כמות אירועי הסכנה הגבוהה ביותר' : 
+                           intersectionFilter === 'school' ? 'אירועי סכנה בקרבת מוסדות חינוך' : 'אירועי סכנה בכלל הצמתים'}
+                      </h3>
+                      <select 
+                          value={intersectionFilter}
+                          onChange={(e) => setIntersectionFilter(e.target.value)}
+                          className="border border-slate-300 rounded px-2 py-1 text-sm text-slate-600 outline-none focus:border-blue-500 cursor-pointer w-full sm:w-auto print:hidden"
+                      >
+                          <option value="top5">🔥 5 המסוכנים ביותר</option>
+                          <option value="school">🏫 סביבת מוסדות חינוך</option>
+                          <option value="all">🚦 כל הצמתים</option>
+                      </select>
+                  </div>
+                  <div className="flex-1 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={dashboardData.intersections} margin={{ top: 5, right: 30, left: -20, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                              <XAxis dataKey="name" tick={{fill: '#64748b', fontSize: 11}} />
+                              <YAxis tick={{fill: '#64748b', fontSize: 11}} />
+                              <Tooltip cursor={{fill: '#f1f5f9'}} />
+                              <Legend wrapperStyle={{fontSize: '11px'}} />
+                              <Bar dataKey="children" name="ילדים" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                              <Bar dataKey="adults" name="מבוגרים" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                              <Bar dataKey="vehicles" name="רכבים" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                      </ResponsiveContainer>
+                  </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-[22rem] flex flex-col">
+                  <h3 className="font-bold text-slate-700 mb-1 text-sm md:text-base">מגמת עומס אירועי בטיחות (שבועי)</h3>
+                  <p className="text-xs text-slate-500 mb-4">משקף סכנות מבוססות AI בלבד שטופלו</p>
+                  <div className="flex-1 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={dashboardData.weekly} margin={{ top: 5, right: 30, left: -20, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                              <XAxis dataKey="name" tick={{fill: '#64748b', fontSize: 11}} />
+                              <YAxis tick={{fill: '#64748b', fontSize: 11}} />
+                              <Tooltip />
+                              <Line type="monotone" dataKey="safetyAlerts" name="כמות אירועי סכנה" stroke="#8b5cf6" strokeWidth={3} dot={{r: 4, fill: '#8b5cf6'}} activeDot={{r: 6}} />
+                          </LineChart>
+                      </ResponsiveContainer>
+                  </div>
+              </div>
+              
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-[22rem] flex flex-col lg:col-span-2">
+                  <h3 className="font-bold text-slate-700 mb-2 text-sm md:text-base">פילוח חומרת אירועים </h3>
+                  <div className="flex-1 w-full flex justify-center items-center">
+                      <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                              <Pie
+                                  data={dashboardData.severity}
+                                  cx="50%"
+                                  cy="45%"
+                                  innerRadius={55}
+                                  outerRadius={75}
+                                  paddingAngle={5}
+                                  dataKey="value"
+                              >
+                                  {dashboardData.severity.map((entry, index) => (
+                                      <Cell key={`cell-${index}`} fill={severityColors[index % severityColors.length]} />
+                                  ))}
+                              </Pie>
+                              <Tooltip />
+                              <Legend 
+                                  verticalAlign="bottom" 
+                                  height={36} 
+                                  formatter={(value, entry) => <span className="text-slate-700 font-medium text-xs md:text-sm mx-2">{value}</span>}
+                              />
+                          </PieChart>
+                      </ResponsiveContainer>
+                  </div>
+              </div>
+
+          </div>
+        )}
+
       </main>
     </div>
   );
