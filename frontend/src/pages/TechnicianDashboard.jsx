@@ -27,11 +27,7 @@ function TechnicianDashboard() {
 
   useEffect(() => {
 
-    /*
-    ========================================
-    Load technician data from the backend.
-    ========================================
-    */
+   
     const fetchTechnicianData = async () => {
       setIsLoading(true);
 
@@ -65,12 +61,7 @@ function TechnicianDashboard() {
 
     fetchTechnicianData();
 
-    /*
-    ========================================
-    Listen for real-time infrastructure
-    changes from the backend.
-    ========================================
-    */
+    
     const socketUrl = import.meta.env.VITE_API_URL.replace('/api', '');
     const socket = io(socketUrl);
 
@@ -118,24 +109,13 @@ function TechnicianDashboard() {
 
   }, []);
 
-  /*
-  ========================================
-  Logout
-  ========================================
-  */
+ 
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/');
   };
 
-  /*
-  ========================================
-  Mark hardware as fixed.
-
-  Changes the selected hardware status
-  back to active in the backend.
-  ========================================
-  */
+  
   const handleFixHardware = async (itemType, itemId) => {
 
     try {
@@ -204,11 +184,7 @@ function TechnicianDashboard() {
     }
   };
 
-  /*
-  ========================================
-  Filter faulty hardware.
-  ========================================
-  */
+  
   const faultyCameras = cameras.filter(
     c => c.status === 'error' || c.status === 'suspended'
   );
@@ -221,24 +197,12 @@ function TechnicianDashboard() {
     cw => cw.status === 'error' || cw.status === 'suspended'
   );
 
-  /*
-  ========================================
-  Find the crosswalk linked to a camera
-  or LED using junctionId.
-  ========================================
-  */
+ 
   const getLinkedCrosswalk = (junctionId) => {
     return crosswalks.find(cw => cw._id === junctionId);
   };
 
-  /*
-  ========================================
-  Build one list of all faulty hardware.
-
-  Cameras and LEDs receive their
-  coordinates from their linked crosswalk.
-  ========================================
-  */
+  
   const allFaultyItems = [
 
     ...faultyCrosswalksList.map(cw => ({
@@ -257,7 +221,6 @@ function TechnicianDashboard() {
         title: `מצלמה (IP: ${cam.ip})`,
         fault: `תקלת מצלמה (${cam.type})`,
 
-        // Use the linked crosswalk location.
         lat: linkedCrosswalk?.lat,
         lng: linkedCrosswalk?.lng
       };
@@ -417,7 +380,6 @@ function TechnicianDashboard() {
 
           )}
 
-          {/* Faulty hardware table */}
           <div className="bg-white rounded-xl shadow-md border border-slate-200 flex flex-col flex-1 overflow-hidden">
 
             <div className="bg-slate-50 p-4 border-b border-slate-200 font-bold text-slate-700 flex justify-between items-center text-sm md:text-base">

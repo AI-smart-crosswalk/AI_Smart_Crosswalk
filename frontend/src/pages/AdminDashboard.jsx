@@ -4,7 +4,6 @@ import { io } from 'socket.io-client';
 
 const socket = io('http://localhost:3000');
 
-// פונקציות עזר לבדיקת תקינות (Validation)
 const isValidEmail = (email) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 };
@@ -584,7 +583,6 @@ function AdminDashboard() {
         )}
       </main>
 
-      {/* Modal יצירת משתמש */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 max-h-[90vh] overflow-y-auto">
@@ -737,7 +735,6 @@ function AdminDashboard() {
         </div>
       )}
 
-      {/* Modal יצירת/עריכת תשתיות */}
       {isInfraModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 max-h-[90vh] overflow-y-auto">

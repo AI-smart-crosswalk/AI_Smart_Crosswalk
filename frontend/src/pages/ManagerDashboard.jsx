@@ -12,7 +12,6 @@ function ManagerDashboard() {
   const [intersectionFilter, setIntersectionFilter] = useState('top5');
   const [isLoading, setIsLoading] = useState(true);
   
-  // הסטייט החדש - מחזיק את כל הנתונים המחושבים שהבאקאנד שולח
   const [dashboardData, setDashboardData] = useState({
     stats: { totalAlerts: 0, highRisk: 0, activeCrosswalks: 0, totalCrosswalks: 0, avgResponseTime: 0 },
     intersections: [],
@@ -20,7 +19,6 @@ function ManagerDashboard() {
     severity: []
   });
 
-  // פונקציית המשיכה מהשרת הופרדה כדי שנוכל לקרוא לה גם כשמשתנה פילטר וגם כשמתקבל סוקט
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
@@ -28,7 +26,6 @@ function ManagerDashboard() {
       const token = localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      // שולחים בקשה לראוט האנליטיקה החדש של יוסף, ומעבירים לו את הפילטר הנוכחי
       const response = await fetch(`${apiUrl}/analytics/dashboard?filter=${intersectionFilter}`, { headers });
       
       if (response.ok) {
@@ -56,7 +53,6 @@ useEffect(() => {
   const socket = io(socketUrl);
 
 
-  // Increase the counter when an alert becomes resolved.
   socket.on('alert_resolved', () => {
 
     setDashboardData((prev) => ({
@@ -70,7 +66,6 @@ useEffect(() => {
   });
 
 
-  // Decrease the counter when a resolved alert is reopened.
   socket.on('alert_reopened', () => {
 
     setDashboardData((prev) => ({
@@ -87,7 +82,6 @@ useEffect(() => {
   });
 
 
-  // Refresh dashboard data when a crosswalk is added.
   socket.on('infra_added', (data) => {
 
     if (data.type === 'crosswalk') {
@@ -97,7 +91,6 @@ useEffect(() => {
   });
 
 
-  // Refresh dashboard data when a crosswalk is updated.
   socket.on('infra_updated', (data) => {
 
     if (data.type === 'crosswalk') {
@@ -107,7 +100,6 @@ useEffect(() => {
   });
 
 
-  // Refresh dashboard data when a crosswalk is deleted.
   socket.on('infra_deleted', (data) => {
 
     if (data.type === 'crosswalk') {
@@ -117,7 +109,6 @@ useEffect(() => {
   });
 
 
-  // Disconnect when leaving the page.
   return () => {
 
     socket.off('alert_resolved');
