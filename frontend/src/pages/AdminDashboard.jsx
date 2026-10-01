@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:3000');
+const apiUrl = import.meta.env.VITE_API_URL;
+const socketUrl = apiUrl ? apiUrl.replace('/api', '') : 'http://localhost:3000';
+const socket = io(socketUrl);
 
 const isValidEmail = (email) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -66,12 +68,13 @@ function AdminDashboard() {
         }
 
         const headers = { 'Authorization': `Bearer ${token}` };
+        const apiUrl = import.meta.env.VITE_API_URL;
 
         const [usersRes, crosswalksRes, camerasRes, ledsRes] = await Promise.all([
-          fetch('/api/users', { headers }),
-          fetch('/api/crosswalks', { headers }),
-          fetch('/api/cameras', { headers }),
-          fetch('/api/leds', { headers })
+          fetch(`${apiUrl}/users`, { headers }),
+          fetch(`${apiUrl}/crosswalks`, { headers }),
+          fetch(`${apiUrl}/cameras`, { headers }),
+          fetch(`${apiUrl}/leds`, { headers })
         ]);
 
         if (usersRes.ok) setUsers(await usersRes.json());
@@ -154,7 +157,7 @@ function AdminDashboard() {
     }
 
     try {
-      const response = await fetch('/api/users/register', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/register`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(formData)
@@ -178,7 +181,7 @@ function AdminDashboard() {
   const handleUpdateUser = async (e) => {
       e.preventDefault();
       try {
-        const response = await fetch(`/api/users/${selectedUser._id}`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${selectedUser._id}`, {
           method: 'PUT',
           headers: getHeaders(),
           body: JSON.stringify({
@@ -202,7 +205,7 @@ function AdminDashboard() {
   const handleToggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
     try {
-      const response = await fetch(`/api/users/${id}/status`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${id}/status`, {
         method: 'PATCH',
         headers: getHeaders(),
         body: JSON.stringify({ status: newStatus })
@@ -220,7 +223,7 @@ function AdminDashboard() {
   const handleDeleteUser = async (id) => {
     if (!window.confirm('האם אתה בטוח שברצונך למחוק משתמש זה? פעולה זו בלתי הפיכה.')) return;
     try {
-      const response = await fetch(`/api/users/${id}`, { method: 'DELETE', headers: getHeaders() });
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${id}`, { method: 'DELETE', headers: getHeaders() });
       if (!response.ok) throw new Error('שגיאה במחיקת משתמש');
       
       setUsers(users.filter(user => user._id !== id));
@@ -271,10 +274,11 @@ function AdminDashboard() {
   const handleDeleteInfra = async (id) => {
     if (!window.confirm('האם אתה בטוח שברצונך למחוק פריט תשתית זה?')) return;
     try {
+      const apiUrl = import.meta.env.VITE_API_URL;
       let endpoint = '';
-      if (infraSubTab === 'junctions') endpoint = '/api/crosswalks';
-      if (infraSubTab === 'cameras') endpoint = '/api/cameras';
-      if (infraSubTab === 'leds') endpoint = '/api/leds';
+      if (infraSubTab === 'junctions') endpoint = `${apiUrl}/crosswalks`;
+      if (infraSubTab === 'cameras') endpoint = `${apiUrl}/cameras`;
+      if (infraSubTab === 'leds') endpoint = `${apiUrl}/leds`;
 
       const response = await fetch(`${endpoint}/${id}`, { method: 'DELETE', headers: getHeaders() });
       if (!response.ok) throw new Error('שגיאה במחיקת הפריט');
@@ -291,10 +295,11 @@ function AdminDashboard() {
   const handleSaveInfraUpdate = async (e) => {
     e.preventDefault();
     try {
+      const apiUrl = import.meta.env.VITE_API_URL;
       let endpoint = '';
-      if (infraSubTab === 'junctions') endpoint = '/api/crosswalks';
-      if (infraSubTab === 'cameras') endpoint = '/api/cameras';
-      if (infraSubTab === 'leds') endpoint = '/api/leds';
+      if (infraSubTab === 'junctions') endpoint = `${apiUrl}/crosswalks`;
+      if (infraSubTab === 'cameras') endpoint = `${apiUrl}/cameras`;
+      if (infraSubTab === 'leds') endpoint = `${apiUrl}/leds`;
 
       const method = isInfraEditMode ? 'PUT' : 'POST';
       const url = isInfraEditMode ? `${endpoint}/${infraFormData._id}` : endpoint;
@@ -413,8 +418,8 @@ function AdminDashboard() {
             <div className="bg-slate-50 p-4 border-b border-slate-200 font-bold text-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <span>רשימת משתמשים והרשאות</span>
                 <input 
-                    type="text" placeholder="חיפוש משתמש, ת.ז או מזהה..." value={userSearchTerm} onChange={(e) => setUserSearchTerm(e.target.value)}
-                    className="p-2 px-3 border border-slate-300 rounded text-sm outline-none focus:border-purple-500 w-full sm:w-64 font-normal"
+                  type="text" placeholder="חיפוש משתמש, ת.ז או מזהה..." value={userSearchTerm} onChange={(e) => setUserSearchTerm(e.target.value)}
+                  className="p-2 px-3 border border-slate-300 rounded text-sm outline-none focus:border-purple-500 w-full sm:w-64 font-normal"
                 />
             </div>
             <div className="overflow-x-auto">
@@ -746,7 +751,7 @@ function AdminDashboard() {
             </div>
 
             <form onSubmit={handleSaveInfraUpdate} className="flex flex-col gap-4">
-             
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">שם / תיאור</label>
