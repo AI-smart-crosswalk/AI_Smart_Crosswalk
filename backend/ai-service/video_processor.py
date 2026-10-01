@@ -132,8 +132,11 @@ class VideoProcessor:
 
     def _handle_assessments(self, assessments, frame, t: float, frame_index: int) -> None:
         # Keep only risky results for people seen in enough frames.
-        risky = [a for a in assessments if a.level is not None
-                 and (a.track_id == -1 or a.metadata.get("frames", 0) >= config.MIN_FRAMES_FOR_ALERT)]
+        # Every detected risk case is allowed to become an event.
+        risky = [
+            a for a in assessments
+            if a.level is not None and a.case_id is not None
+        ]
         if not risky:
             return
         for a in [max(risky, key=self._severity)]:       # Send at most one alert per frame (the worst).

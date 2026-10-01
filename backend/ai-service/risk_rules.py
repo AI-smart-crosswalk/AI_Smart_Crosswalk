@@ -197,6 +197,37 @@ class RiskEngine:
         # did not "appear suddenly" (H4); they were already there.
         self._stream_t0 = stream_start_t
 
+           # ============================================================
+    # NEW: Additional phone-to-person check
+    # ============================================================
+    # This function checks whether a phone was already assigned
+    #o this specific person in at least one observation.
+    #
+    # The geometric phone-to-person assignment is performed earlier.
+    # If the phone was assigned to this person, observation.phone
+    # should already be True.
+    #
+    # This function DOES NOT replace the existing M2 rule.
+    # It is an additional check that will be used during video analysis.
+    # ============================================================
+
+    def check_phone_assigned_to_person(self, track, t: float) -> bool:
+
+        # Get this person's observations from the current risk window.
+        observations = (
+            track.window(t, self.cfg.RISK_WINDOW_SECONDS)
+            or track.observations[-1:]
+        )
+
+        # Check whether any observation has a phone
+        # already assigned to this person.
+        for observation in observations:
+            if getattr(observation, "phone", False):
+                return True
+
+        # No phone was assigned to this person.
+        return False
+
     # ----------------------------------------
     # Evaluate All Tracks
     # ----------------------------------------
@@ -219,7 +250,26 @@ class RiskEngine:
             if getattr(tr, "kind", "person") == "wheeled":
                 results.append(self.assess_wheeled(tr.track_id, k))
             else:
-                results.append(self.assess(tr.track_id, k))
+                # Run the normal risk assessment first.
+                assessment = self.assess(tr.track_id, k)
+
+                # NEW: Check if a phone was assigned to this person.
+                phone_assigned = self.check_phone_assigned_to_person(tr, t)
+
+                # If a phone was assigned, classify as at least M2 (Medium).
+                # Do not override an existing High-risk case.
+                if phone_assigned and assessment.level != "High":
+                    level, name, reason = CASES["M2"]
+
+                    assessment.level = level
+                    assessment.case_id = "M2"
+                    assessment.case_name = name
+                    assessment.reason = reason
+                    assessment.distracted = True
+                    assessment.metadata["phoneAssigned"] = True
+
+                # Add the final assessment to the results.
+                results.append(assessment)
 
         # Group rule only applies to pedestrians.
         group = self.assess_group([(tr, k) for tr, k in kins if getattr(tr, "kind", "person") == "person"])
@@ -520,3 +570,6 @@ class RiskEngine:
                 return ("child" if h < cfg.CHILD_HEIGHT_RATIO * expected else "adult"), "calibration"
         # Without calibration, do not guess (to avoid false child alerts).
         return "unknown", "none"
+
+
+    
