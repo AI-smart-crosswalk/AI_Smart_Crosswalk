@@ -93,6 +93,30 @@ function DispatcherDashboard() {
       );
     });
 
+    // Live crosswalk updates: the server sends { type, payload } after
+    // every create / update / delete, so the map and the list change
+    // in place without another request to the server.
+    socket.on('infra_added', ({ type, payload }) => {
+      if (type !== 'crosswalk' || !payload?._id) return;
+      setCrosswalksData((prev) =>
+        prev.some((cw) => cw._id === payload._id) ? prev : [...prev, payload]
+      );
+    });
+
+    socket.on('infra_updated', ({ type, payload }) => {
+      if (type !== 'crosswalk' || !payload?._id) return;
+      setCrosswalksData((prev) =>
+        prev.map((cw) => (cw._id === payload._id ? payload : cw))
+      );
+    });
+
+    socket.on('infra_deleted', ({ type, payload }) => {
+      if (type !== 'crosswalk' || !payload?._id) return;
+      setCrosswalksData((prev) =>
+        prev.filter((cw) => cw._id !== payload._id)
+      );
+    });
+
     return () => socket.disconnect();
   }, [navigate]);
 

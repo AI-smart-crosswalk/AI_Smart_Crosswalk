@@ -180,6 +180,24 @@ function AdminDashboard() {
 
   const handleUpdateUser = async (e) => {
       e.preventDefault();
+
+      // Same checks as when creating a user.
+      if (!(formData.name || '').trim().includes(' ')) {
+        return alert('נא להזין שם מלא הכולל לפחות שתי שמות (שם פרטי ומשפחה)');
+      }
+
+      if (formData.email && !isValidEmail(formData.email)) {
+        return alert('כתובת האימייל שהוזנה אינה תקינה');
+      }
+
+      if (formData.phone && !isValidPhone(formData.phone)) {
+        return alert('מספר הטלפון שהוזן אינו תקין (לדוגמה: 0501234567)');
+      }
+
+      if (formData.idNumber && !isValidIsraeliID(formData.idNumber)) {
+        return alert('מספר תעודת הזהות אינו תקין');
+      }
+
       try {
         const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${selectedUser._id}`, {
           method: 'PUT',
